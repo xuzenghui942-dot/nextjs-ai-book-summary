@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -131,6 +131,11 @@ export default function ReviewsPage() {
     return pages;
   };
 
+  const pageNumbers = useMemo(
+    () => getPageNumbers(pagination.page, pagination.totalPages),
+    [pagination.page, pagination.totalPages]
+  );
+
   if (loading && reviews.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -259,7 +264,7 @@ export default function ReviewsPage() {
           >
             Previous
           </button>
-          {getPageNumbers(pagination.page, pagination.totalPages).map((p, i) =>
+          {pageNumbers.map((p, i) =>
             p === "..." ? (
               <span key={`ellipsis-${i}`} className="px-2 text-slate-400 dark:text-slate-600">...</span>
             ) : (

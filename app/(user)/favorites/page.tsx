@@ -1,22 +1,12 @@
 "use client";
 
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
+import BookCard from "@/components/book-card";
 import { useUser } from "@/hooks/use-user";
 import { useFavorites, useToggleFavorite } from "@/hooks/use-favorites";
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center space-x-1">
-      {[...Array(5)].map((_, i) => (
-        <span key={i} className={i < Math.round(rating) ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"}>★</span>
-      ))}
-      <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">({rating.toFixed(1)})</span>
-    </div>
-  );
-}
 
 export default function FavoritesPage() {
   const router = useRouter();
@@ -24,10 +14,13 @@ export default function FavoritesPage() {
   const { data: favorites = [], isLoading } = useFavorites();
   const toggleFavorite = useToggleFavorite();
 
-  const handleRemoveFavorite = (bookId: number) => {
-    if (!confirm("Remove this book from your favorites?")) return;
-    toggleFavorite.mutate({ bookId, isFavorited: true });
-  };
+  const handleToggleFavorite = useCallback((bookId: number, isFavorited: boolean) => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    toggleFavorite.mutate({ bookId, isFavorited });
+  }, [user, router, toggleFavorite]);
 
   const handleSignOut = async () => {
     try {
@@ -100,44 +93,21 @@ export default function FavoritesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {favorites.map((favorite: any) => (
-              <div key={favorite.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow">
-                <Link href={`/books/${favorite.book.id}`}>
-                  <div className="relative h-64 bg-slate-100 dark:bg-slate-700">
-                    {favorite.book.coverImageUrl ? (
-                      <Image src={favorite.book.coverImageUrl} alt={favorite.book.title} fill className="object-cover" />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
-                        <span className="text-6xl">📖</span>
-                      </div>
-                    )}
-                    <button
-                      onClick={(e) => { e.preventDefault(); handleRemoveFavorite(favorite.bookId); }}
-                      disabled={toggleFavorite.isPending}
-                      className="absolute top-3 right-3 w-10 h-10 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <span className="text-xl">❤️</span>
-                    </button>
-                  </div>
-                </Link>
-                <div className="p-4">
-                  <div className="mb-2">
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                      {favorite.book.category.icon && <span className="mr-1">{favorite.book.category.icon}</span>}
-                      {favorite.book.category.name}
-                    </span>
-                  </div>
-                  <Link href={`/books/${favorite.book.id}`}>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 line-clamp-2 hover:text-emerald-600 dark:hover:text-emerald-400">{favorite.book.title}</h3>
-                  </Link>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">by {favorite.book.author}</p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 mb-3 line-clamp-2">{favorite.book.description}</p>
-                  <div className="flex items-center justify-between mb-3">
-                    <StarRating rating={favorite.book.averageRating} />
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{favorite.book._count.reviews} reviews</span>
-                  </div>
-                  <Link href={`/books/${favorite.book.id}`} className="block w-full py-2 bg-emerald-600 text-white rounded-lg font-semibold text-center hover:bg-emerald-700 transition-colors">Read Summary</Link>
-                </div>
-              </div>
+              <BookCard
+                key={favorite.id}
+                id={favorite.book.id}
+                title={favorite.book.title}
+                author={favorite.book.author}
+                description={favorite.book.description}
+                coverImageUrl={favorite.book.coverImageUrl}
+                averageRating={favorite.book.averageRating}
+                reviewCount={favorite.book._count.reviews}
+                isFavorited={true}
+                category={favorite.book.category}
+                subscriptionTier={user?.subscriptionTier}
+                onToggleFavorite={handleToggleFavorite}
+                isPendingFavorite={toggleFavorite.isPending}
+              />
             ))}
           </div>
         )}

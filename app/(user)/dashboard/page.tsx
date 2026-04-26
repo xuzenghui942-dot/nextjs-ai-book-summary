@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useUser } from "@/hooks/use-user";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface SubscriptionOrder {
   id: number;
@@ -86,8 +86,8 @@ export default function DashboardPage() {
     return null;
   }
 
-  const benefits = getTierBenefits(user.subscriptionTier);
-  const pendingOrder = orders.find((o) => o.orderStatus === "PENDING");
+  const benefits = useMemo(() => getTierBenefits(user.subscriptionTier), [user.subscriptionTier]);
+  const pendingOrder = useMemo(() => orders.find((o) => o.orderStatus === "PENDING"), [orders]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">

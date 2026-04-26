@@ -1,29 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
+import BookCard from "@/components/book-card";
 import { useUser } from "@/hooks/use-user";
 import { useBooks } from "@/hooks/use-books";
 import { useCategories } from "@/hooks/use-categories";
 import { useToggleFavorite } from "@/hooks/use-favorites";
 import { useDebounce } from "@/hooks/use-debounce";
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <div className="flex items-center space-x-1">
-      {[...Array(5)].map((_, i) => (
-        <span key={i} className={i < Math.round(rating) ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"}>
-          ★
-        </span>
-      ))}
-      <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">({rating.toFixed(1)})</span>
-    </div>
-  );
-}
 
 function BooksContent() {
   const router = useRouter();
@@ -43,6 +30,22 @@ function BooksContent() {
   const books = booksData?.books || [];
   const totalPages = booksData?.pagination?.totalPages || 1;
 
+  const paginationPages = useMemo((): (number | "...")[] => {
+    const pages: (number | "...")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push("...");
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push("...");
+      pages.push(totalPages);
+    }
+    return pages;
+  }, [totalPages, currentPage]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
@@ -53,18 +56,18 @@ function BooksContent() {
     router.push(`/books?${params.toString()}`);
   };
 
-  const handleCategoryChange = (categoryId: string) => {
+  const handleCategoryChange = useCallback((categoryId: string) => {
     setSelectedCategory(categoryId);
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handleToggleFavorite = (bookId: number, isFavorited: boolean) => {
+  const handleToggleFavorite = useCallback((bookId: number, isFavorited: boolean) => {
     if (!user) {
       router.push("/login");
       return;
     }
     toggleFavorite.mutate({ bookId, isFavorited });
-  };
+  }, [user, router, toggleFavorite]);
 
   const handleSignOut = async () => {
     try {
@@ -182,50 +185,21 @@ function BooksContent() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
               {books.map((book: any) => (
-                <div key={book.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow">
-                  <Link href={`/books/${book.id}`}>
-                    <div className="relative h-64 bg-slate-100 dark:bg-slate-700">
-                      {book.coverImageUrl ? (
-                        <Image src={book.coverImageUrl} alt={book.title} fill className="object-cover" />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
-                          <span className="text-6xl">📖</span>
-                        </div>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleToggleFavorite(book.id, book.isFavorited);
-                        }}
-                        className="absolute top-3 right-3 w-10 h-10 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                      >
-                        <span className="text-xl">{book.isFavorited ? "❤️" : "🤍"}</span>
-                      </button>
-                    </div>
-                  </Link>
-                  <div className="p-4">
-                    <div className="mb-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                        {book.category.icon && <span className="mr-1">{book.category.icon}</span>}
-                        {book.category.name}
-                      </span>
-                    </div>
-                    <Link href={`/books/${book.id}`}>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 line-clamp-2 hover:text-emerald-600 dark:hover:text-emerald-400">{book.title}</h3>
-                    </Link>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">by {book.author}</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 mb-3 line-clamp-2">{book.description}</p>
-                    <div className="flex items-center justify-between">
-                      <StarRating rating={book.averageRating} />
-                      <span className="text-xs text-slate-500 dark:text-slate-400">{book._count.reviews} reviews</span>
-                    </div>
-                    {user?.subscriptionTier === "FREE" && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                        <Link href="/pricing" className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-700 dark:hover:text-emerald-300">🔒 Upgrade to unlock full audio & PDF</Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <BookCard
+                  key={book.id}
+                  id={book.id}
+                  title={book.title}
+                  author={book.author}
+                  description={book.description}
+                  coverImageUrl={book.coverImageUrl}
+                  averageRating={book.averageRating}
+                  reviewCount={book._count.reviews}
+                  isFavorited={book.isFavorited}
+                  category={book.category}
+                  subscriptionTier={user?.subscriptionTier}
+                  onToggleFavorite={handleToggleFavorite}
+                  isPendingFavorite={toggleFavorite.isPending}
+                />
               ))}
             </div>
 
@@ -239,35 +213,21 @@ function BooksContent() {
                   Previous
                 </button>
 
-                {(() => {
-                  const pages: (number | "...")[] = [];
-                  if (totalPages <= 7) {
-                    for (let i = 1; i <= totalPages; i++) pages.push(i);
-                  } else {
-                    pages.push(1);
-                    if (currentPage > 3) pages.push("...");
-                    const start = Math.max(2, currentPage - 1);
-                    const end = Math.min(totalPages - 1, currentPage + 1);
-                    for (let i = start; i <= end; i++) pages.push(i);
-                    if (currentPage < totalPages - 2) pages.push("...");
-                    pages.push(totalPages);
-                  }
-                  return pages.map((p, i) =>
-                    p === "..." ? (
-                      <span key={`ellipsis-${i}`} className="px-2 text-slate-400 dark:text-slate-600">...</span>
-                    ) : (
-                      <button
-                        key={p}
-                        onClick={() => setCurrentPage(p as number)}
-                        className={`px-4 py-2 rounded-lg font-medium ${
-                          currentPage === p ? "bg-emerald-600 text-white" : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    )
-                  );
-                })()}
+                {paginationPages.map((p, i) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${i}`} className="px-2 text-slate-400 dark:text-slate-600">...</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p as number)}
+                      className={`px-4 py-2 rounded-lg font-medium ${
+                        currentPage === p ? "bg-emerald-600 text-white" : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
 
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}

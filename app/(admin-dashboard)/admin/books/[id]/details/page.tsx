@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
+
+const ReactMarkdown = dynamic(() => import("react-markdown"), {
+  loading: () => <div className="animate-pulse h-40 bg-slate-200 dark:bg-slate-700 rounded" />,
+});
 import remarkGfm from "remark-gfm";
 
 interface Chapter {
