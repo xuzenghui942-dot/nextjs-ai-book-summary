@@ -7,11 +7,9 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
 }
 
 body {
@@ -26,28 +24,41 @@ body {
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Light */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: #94a3b8;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #64748b;
+}
+
+/* Custom Scrollbar - Dark */
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 /* Audio Player Custom Styles */
 .audio-player {
-  @apply w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4;
+  @apply w-full bg-white dark:bg-slate-800 rounded-lg shadow-lg p-4;
 }
 
 .audio-controls {
