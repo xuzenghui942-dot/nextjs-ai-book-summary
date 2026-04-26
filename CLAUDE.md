@@ -96,7 +96,7 @@ const favorites = await prisma.userFavorite.findMany({...});
 ## 当前优化进度
 
 - [x] Phase 1: N+1 查询修复 + 服务端分页 ✅
-- [ ] Phase 2: React Query 状态管理
+- [x] Phase 2: React Query 状态管理 ✅
 - [ ] Phase 3: 骨架屏 + 错误边界
 - [ ] Phase 4: 渲染优化 (memo/callback/debounce/dynamic import)
 - [ ] Phase 5: 虚拟列表

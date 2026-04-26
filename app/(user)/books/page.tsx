@@ -1,113 +1,56 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useUser } from "@/hooks/use-user";
+import { useBooks } from "@/hooks/use-books";
+import { useCategories } from "@/hooks/use-categories";
+import { useToggleFavorite } from "@/hooks/use-favorites";
+import { useDebounce } from "@/hooks/use-debounce";
 
-interface Book {
-  id: number;
-  title: string;
-  author: string;
-  description: string;
-  coverImageUrl: string;
-  category: {
-    id: number;
-    name: string;
-    slug: string;
-    icon: string;
-  };
-  averageRating: number;
-  isFavorited: boolean;
-  _count: {
-    reviews: number;
-    favorites: number;
-  };
-}
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  icon: string;
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center space-x-1">
+      {[...Array(5)].map((_, i) => (
+        <span key={i} className={i < Math.round(rating) ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"}>
+          ★
+        </span>
+      ))}
+      <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">({rating.toFixed(1)})</span>
+    </div>
+  );
 }
 
 function BooksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [books, setBooks] = useState<Book[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
-  const [totalPages, setTotalPages] = useState(1);
-  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    fetchUser();
-    fetchCategories();
-  }, []);
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  useEffect(() => {
-    fetchBooks();
-  }, [searchQuery, selectedCategory, currentPage]);
+  const { data: user } = useUser();
+  const { data: categories = [] } = useCategories();
+  const { data: booksData, isLoading } = useBooks(currentPage, debouncedSearch, selectedCategory);
+  const toggleFavorite = useToggleFavorite();
 
-  async function fetchUser() {
-    try {
-      const response = await fetch("/api/user/profile");
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user", error);
-    }
-  }
-
-  async function fetchCategories() {
-    try {
-      const response = await fetch("/api/user/categories");
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch Categories", error);
-    }
-  }
-
-  async function fetchBooks() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "12",
-      });
-      if (searchQuery) params.append("search", searchQuery);
-      if (selectedCategory) params.append("category", selectedCategory);
-
-      const response = await fetch(`/api/books?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setBooks(data.books);
-        setTotalPages(data.pagination.totalPages);
-      }
-    } catch (error) {
-      console.error("Failed to fetch books data", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const books = booksData?.books || [];
+  const totalPages = booksData?.pagination?.totalPages || 1;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    updateURL();
+    const params = new URLSearchParams();
+    if (searchQuery) params.set("search", searchQuery);
+    if (selectedCategory) params.set("category", selectedCategory);
+    if (currentPage > 1) params.set("page", currentPage.toString());
+    router.push(`/books?${params.toString()}`);
   };
 
   const handleCategoryChange = (categoryId: string) => {
@@ -115,35 +58,12 @@ function BooksContent() {
     setCurrentPage(1);
   };
 
-  const updateURL = () => {
-    const params = new URLSearchParams();
-    if (searchQuery) params.append("search", searchQuery);
-    if (selectedCategory) params.append("category", selectedCategory);
-    if (currentPage > 1) params.append("page", currentPage.toString());
-    router.push(`/books?${params}`);
-  };
-
-  const handleToggleFavorite = async (bookId: number, isFavorited: boolean) => {
+  const handleToggleFavorite = (bookId: number, isFavorited: boolean) => {
     if (!user) {
-      toast.error("Please log in to add favorites");
       router.push("/login");
       return;
     }
-
-    try {
-      if (isFavorited) {
-        await fetch(`/api/user/favorites/${bookId}`, { method: "DELETE" });
-      } else {
-        await fetch("/api/user/favorites", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookId }),
-        });
-      }
-      fetchBooks();
-    } catch (error) {
-      console.error("Failed to toggle favorites:", error);
-    }
+    toggleFavorite.mutate({ bookId, isFavorited });
   };
 
   const handleSignOut = async () => {
@@ -155,19 +75,6 @@ function BooksContent() {
     } catch (error) {
       console.error("Sign out error", error);
     }
-  };
-
-  const randerStars = (rating: number) => {
-    return (
-      <div className="flex items-center space-x-1">
-        {[...Array(5)].map((_, i) => (
-          <span key={i} className={i < Math.round(rating) ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"}>
-            ★
-          </span>
-        ))}
-        <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">({rating.toFixed(1)})</span>
-      </div>
-    );
   };
 
   return (
@@ -182,23 +89,13 @@ function BooksContent() {
                 </div>
                 <span className="text-xl font-bold text-slate-900 dark:text-white">BookWise</span>
               </Link>
-
               <div className="hidden md:flex items-center space-x-6">
-                <Link href="/dashboard" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium">
-                  Dashboard
-                </Link>
-                <Link href="/books" className="text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-700 dark:hover:text-emerald-300">
-                  Browse Books
-                </Link>
-                <Link href="/favorites" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium">
-                  My Favorites
-                </Link>
-                <Link href="/pricing" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium">
-                  Pricing
-                </Link>
+                <Link href="/dashboard" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium">Dashboard</Link>
+                <Link href="/books" className="text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-700 dark:hover:text-emerald-300">Browse Books</Link>
+                <Link href="/favorites" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium">My Favorites</Link>
+                <Link href="/pricing" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium">Pricing</Link>
               </div>
             </div>
-
             <div className="flex items-center space-x-4">
               {user ? (
                 <>
@@ -207,22 +104,12 @@ function BooksContent() {
                     <p className="text-xs text-slate-600 dark:text-slate-400">{user.subscriptionTier}</p>
                   </div>
                   <ThemeToggle />
-                  <button
-                    onClick={handleSignOut}
-                    className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    Sign Out
-                  </button>
+                  <button onClick={handleSignOut} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Sign Out</button>
                 </>
               ) : (
                 <>
                   <ThemeToggle />
-                  <Link
-                    href="/login"
-                    className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
-                  >
-                    Sign In
-                  </Link>
+                  <Link href="/login" className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">Sign In</Link>
                 </>
               )}
             </div>
@@ -246,12 +133,7 @@ function BooksContent() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-slate-400"
               />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
-              >
-                Search
-              </button>
+              <button type="submit" className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors">Search</button>
             </div>
           </form>
 
@@ -268,8 +150,7 @@ function BooksContent() {
               >
                 All Categories
               </button>
-
-              {categories.map((category) => (
+              {categories.map((category: any) => (
                 <button
                   key={category.id}
                   onClick={() => handleCategoryChange(category.id.toString())}
@@ -287,7 +168,7 @@ function BooksContent() {
           </div>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="text-xl text-slate-600 dark:text-slate-400">Loading books...</div>
           </div>
@@ -300,26 +181,17 @@ function BooksContent() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-              {books.map((book) => (
-                <div
-                  key={book.id}
-                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow"
-                >
+              {books.map((book: any) => (
+                <div key={book.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-shadow">
                   <Link href={`/books/${book.id}`}>
                     <div className="relative h-64 bg-slate-100 dark:bg-slate-700">
                       {book.coverImageUrl ? (
-                        <Image
-                          src={book.coverImageUrl}
-                          alt={book.title}
-                          fill
-                          className="object-cover"
-                        />
+                        <Image src={book.coverImageUrl} alt={book.title} fill className="object-cover" />
                       ) : (
                         <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
                           <span className="text-6xl">📖</span>
                         </div>
                       )}
-
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -331,7 +203,6 @@ function BooksContent() {
                       </button>
                     </div>
                   </Link>
-
                   <div className="p-4">
                     <div className="mb-2">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
@@ -339,30 +210,18 @@ function BooksContent() {
                         {book.category.name}
                       </span>
                     </div>
-
                     <Link href={`/books/${book.id}`}>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 line-clamp-2 hover:text-emerald-600 dark:hover:text-emerald-400">
-                        {book.title}
-                      </h3>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 line-clamp-2 hover:text-emerald-600 dark:hover:text-emerald-400">{book.title}</h3>
                     </Link>
-
                     <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">by {book.author}</p>
-
                     <p className="text-sm text-slate-700 dark:text-slate-300 mb-3 line-clamp-2">{book.description}</p>
-
                     <div className="flex items-center justify-between">
-                      {randerStars(book.averageRating)}
+                      <StarRating rating={book.averageRating} />
                       <span className="text-xs text-slate-500 dark:text-slate-400">{book._count.reviews} reviews</span>
                     </div>
-
                     {user?.subscriptionTier === "FREE" && (
                       <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                        <Link
-                          href="/pricing"
-                          className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-700 dark:hover:text-emerald-300"
-                        >
-                          🔒 Upgrade to unlock full audio & PDF
-                        </Link>
+                        <Link href="/pricing" className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-700 dark:hover:text-emerald-300">🔒 Upgrade to unlock full audio & PDF</Link>
                       </div>
                     )}
                   </div>
@@ -401,9 +260,7 @@ function BooksContent() {
                         key={p}
                         onClick={() => setCurrentPage(p as number)}
                         className={`px-4 py-2 rounded-lg font-medium ${
-                          currentPage === p
-                            ? "bg-emerald-600 text-white"
-                            : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                          currentPage === p ? "bg-emerald-600 text-white" : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                         }`}
                       >
                         {p}
@@ -429,13 +286,13 @@ function BooksContent() {
 }
 
 export default function BooksPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-                <div className="text-xl text-slate-600 dark:text-slate-400">Loading...</div>
-            </div>
-        }>
-            <BooksContent />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="text-xl text-slate-600 dark:text-slate-400">Loading...</div>
+      </div>
+    }>
+      <BooksContent />
+    </Suspense>
+  );
 }
