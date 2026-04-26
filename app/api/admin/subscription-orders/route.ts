@@ -11,29 +11,43 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
+    const status = searchParams.get("status") || "ALL";
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const skip = (page - 1) * limit;
 
-    const where = status && status !== "ALL" ? { orderStatus: status as any } : {};
+    const where: any = status && status !== "ALL" ? { orderStatus: status } : {};
 
-    const orders = await prisma.subscriptionOrder.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            subscriptionTier: true,
-            subscriptionStatus: true,
+    const [orders, totalCount] = await Promise.all([
+      prisma.subscriptionOrder.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              subscriptionTier: true,
+              subscriptionStatus: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.subscriptionOrder.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      orders,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
       },
     });
-
-    return NextResponse.json(orders);
   } catch (error) {
     console.error("Error etching subscription orders", error);
   }

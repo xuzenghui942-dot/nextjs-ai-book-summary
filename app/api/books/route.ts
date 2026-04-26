@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
       where.categoryId = parseInt(category);
     }
 
-    // Fetch books data with pagination
     const [books, totalCount] = await Promise.all([
       prisma.book.findMany({
         where,
@@ -57,37 +56,40 @@ export async function GET(request: NextRequest) {
       prisma.book.count({ where }),
     ]);
 
-    // Calaculate avarage ratings
-    const booksWithRatings = await Promise.all(
-      books.map(async (book) => {
-        const avgRating = await prisma.bookReview.aggregate({
-          where: {
-            bookId: book.id,
-            isApproved: true,
-          },
-          _avg: {
-            rating: true,
-          },
-        });
+    const bookIds = books.map((book) => book.id);
 
-        /// Check if current user has favorited this book
-        let isFavorited = false;
-        if (session?.user) {
-          const favorite = await prisma.userFavorite.findFirst({
+    const [ratings, favorites] = await Promise.all([
+      prisma.bookReview.groupBy({
+        by: ["bookId"],
+        where: {
+          bookId: { in: bookIds },
+          isApproved: true,
+        },
+        _avg: {
+          rating: true,
+        },
+      }),
+      session?.user
+        ? prisma.userFavorite.findMany({
             where: {
               userId: session.user.id,
-              bookId: book.id,
+              bookId: { in: bookIds },
             },
-          });
-          isFavorited = !!favorite;
-        }
-        return {
-          ...book,
-          averageRating: avgRating._avg.rating || 0,
-          isFavorited,
-        };
-      })
-    );
+            select: {
+              bookId: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const ratingMap = new Map(ratings.map((r) => [r.bookId, r._avg.rating || 0]));
+    const favoriteSet = new Set(favorites.map((f) => f.bookId));
+
+    const booksWithRatings = books.map((book) => ({
+      ...book,
+      averageRating: ratingMap.get(book.id) || 0,
+      isFavorited: favoriteSet.has(book.id),
+    }));
 
     return NextResponse.json({
       books: booksWithRatings,

@@ -32,21 +32,32 @@ export default function SubscriptionPage() {
   const [filter, setFilter] = useState("PENDING");
   const [processing, setProcessing] = useState<number | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   useEffect(() => {
     fetchOrders();
-  }, [filter]);
+  }, [filter, currentPage]);
 
   async function fetchOrders() {
+    setLoading(true);
     try {
-      const response = await fetch(`/api/admin/subscription-orders?status=${filter}`);
+      const response = await fetch(`/api/admin/subscription-orders?status=${filter}&page=${currentPage}&limit=20`);
       if (response.ok) {
         const data = await response.json();
-        setOrders(data);
+        setOrders(data.orders);
+        setTotalPages(data.pagination.totalPages);
+        setTotalCount(data.pagination.totalCount);
       }
       setLoading(false);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
+      setLoading(false);
     }
   }
 
@@ -147,7 +158,7 @@ export default function SubscriptionPage() {
       <div className="mb-6 grid grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Total Orders</div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{orders.length}</div>
+          <div className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{totalCount}</div>
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Pending</div>
@@ -337,6 +348,28 @@ export default function SubscriptionPage() {
           ))
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2 mt-6">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-slate-600 dark:text-slate-400">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {selectedImage && (
         <div

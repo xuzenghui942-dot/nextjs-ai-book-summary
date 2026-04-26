@@ -4,50 +4,73 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("[api/admin/users] GET", request.url);
     const session = await auth();
 
     if (!session?.user || session.user.role !== "ADMIN") {
-      console.error("[api/admin/users] unauthorized request", request.url);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const users = await prisma.user.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        subscriptionTier: true,
-        subscriptionStatus: true,
-        emailVerified: true,
-        subscriptionStartDate: true,
-        subscriptionEndDate: true,
-        audioListenTime: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            favorites: true,
-            readingHistory: true,
-            reviews: true,
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const role = searchParams.get("role") || "";
+    const search = searchParams.get("search") || "";
+    const tier = searchParams.get("tier") || "";
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (role) {
+      where.role = role;
+    }
+
+    if (tier === "premium") {
+      where.subscriptionTier = { not: "FREE" };
+    } else if (tier === "free") {
+      where.subscriptionTier = "FREE";
+    }
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [users, totalCount] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          role: true,
+          subscriptionTier: true,
+          subscriptionStatus: true,
+          emailVerified: true,
+          createdAt: true,
+          _count: {
+            select: {
+              favorites: true,
+              reviews: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.user.count({ where }),
+    ]);
 
-    return NextResponse.json(users);
-  } catch (error) {
-    console.error("[api/admin/users] error fetching users", {
-      url: request.url,
-      error,
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return NextResponse.json({
+      users,
+      pagination: { page, limit, totalCount, totalPages },
     });
-    return NextResponse.json(
-      { error: "Failed to fetch users" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("[api/admin/users] error", error);
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
   }
 }
