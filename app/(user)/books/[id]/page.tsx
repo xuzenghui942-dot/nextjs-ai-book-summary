@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useRef, use } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
+import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
+import StarRating from "@/components/star-rating";
+import ReviewList from "@/components/review-list";
 import { useUser } from "@/hooks/use-user";
 import { useBookDetail } from "@/hooks/use-book-detail";
+import { useBookReviews } from "@/hooks/use-book-reviews";
 import { useToggleFavorite } from "@/hooks/use-favorites";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -26,9 +30,16 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
 
   const { data: user } = useUser();
   const { data: book, isLoading } = useBookDetail(parseInt(id));
+  const bookReviewsQuery = useBookReviews(book?.id ?? null);
   const toggleFavorite = useToggleFavorite();
 
-  const handleToggleFavorite = () => {
+  const allReviews = useMemo(() => {
+    return bookReviewsQuery.data?.pages.flatMap((page) => page.reviews) ?? [];
+  }, [bookReviewsQuery.data]);
+
+  const totalReviewCount = bookReviewsQuery.data?.pages[0]?.pagination.totalCount ?? book?._count.reviews ?? 0;
+
+  const handleToggleFavorite = useCallback(() => {
     if (!user) {
       toast.error("Please log in to add favorites");
       router.push("/login");
@@ -36,7 +47,7 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
     }
     if (!book) return;
     toggleFavorite.mutate({ bookId: book.id, isFavorited: book.isFavorited });
-  };
+  }, [user, book, router, toggleFavorite]);
 
   const handlePlayPause = () => {
     if (!audioRef.current) return;
@@ -248,7 +259,7 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
               <p className="text-lg text-slate-600 dark:text-slate-400 mb-4">by {book.author}</p>
               <div className="flex items-center justify-between mb-4">
                 {renderStars(Math.round(book.averageRating))}
-                <span className="text-sm text-slate-600 dark:text-slate-400">{book._count.reviews} reviews</span>
+                <span className="text-sm text-slate-600 dark:text-slate-400">{totalReviewCount} reviews</span>
               </div>
               <div className="space-y-3">
                 <button
@@ -363,7 +374,7 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
 
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Reviews</h2>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Reviews ({totalReviewCount})</h2>
                 {user && (
                   <button onClick={() => setShowReviewForm(!showReviewForm)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700">Write a Review</button>
                 )}
@@ -390,28 +401,15 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </form>
               )}
-              {book.reviews.length === 0 ? (
+              {allReviews.length === 0 && !bookReviewsQuery.hasNextPage ? (
                 <p className="text-slate-600 dark:text-slate-400 text-center py-8">No reviews yet. Be the first to review this book!</p>
               ) : (
-                <div className="space-y-6">
-                  {book.reviews.map((review: any) => (
-                    <div key={review.id} className="border-b border-slate-200 dark:border-slate-700 pb-6 last:border-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-semibold text-slate-900 dark:text-white">{review.user.fullName}</p>
-                          <div className="flex items-center space-x-2 mt-1">
-                            {renderStars(review.rating)}
-                            {review.isVerifiedPurchase && (
-                              <span className="text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 rounded-full font-semibold">✓ Verified Purchase</span>
-                            )}
-                          </div>
-                        </div>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{review.reviewText}</p>
-                    </div>
-                  ))}
-                </div>
+                <ReviewList
+                  reviews={allReviews}
+                  hasNextPage={bookReviewsQuery.hasNextPage}
+                  isFetchingNextPage={bookReviewsQuery.isFetchingNextPage}
+                  fetchNextPage={bookReviewsQuery.fetchNextPage}
+                />
               )}
             </div>
           </div>

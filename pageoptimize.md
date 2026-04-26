@@ -934,3 +934,194 @@ import remarkGfm from "remark-gfm";
 3. **Dynamic Import 的 `loading` 选项**：提供骨架屏组件作为加载占位，避免布局偏移。
 4. **Phase 2 的 `useDebounce` 钩子** 已在 Phase 2 中实现（搜索框 300ms 防抖），Phase 4 不需要重复添加。
 5. **管理后台的 books 和 users 页面** 已在 Phase 1 转为 Server Components，不需要客户端 memo 优化。
+
+---
+
+## Phase 5：虚拟列表 + 无限滚动 — 2026-04-26
+
+### 修改文件清单
+
+| 文件路径 | 类型 | 修改摘要 |
+|---------|------|---------|
+| `package.json` | 修改 | 新增 `@tanstack/react-virtual` 依赖 |
+| `app/api/books/[id]/reviews/route.ts` | 新建 | 书籍评论分页 API（支持 page/limit 参数） |
+| `hooks/use-book-reviews.ts` | 新建 | `useBookReviews` hook，使用 `useInfiniteQuery` |
+| `components/review-list.tsx` | 新建 | 评论虚拟列表组件，使用 `useVirtualizer` |
+| `components/star-rating.tsx` | 已有 | 在 ReviewList 中复用（Phase 4 创建） |
+| `app/(user)/books/[id]/page.tsx` | 修改 | 评论区域改为无限滚动 + 虚拟列表 |
+
+---
+
+### 关键代码对比
+
+#### 5.1 评论分页 API
+
+**新增** `app/api/books/[id]/reviews/route.ts`:
+
+```typescript
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const bookId = parseInt(id);
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const limit = parseInt(url.searchParams.get("limit") || "10");
+  const skip = (page - 1) * limit;
+
+  const [reviews, totalCount] = await Promise.all([
+    prisma.bookReview.findMany({
+      where: { bookId, isApproved: true },
+      include: { user: { select: { id: true, fullName: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+      skip, take: limit,
+    }),
+    prisma.bookReview.count({ where: { bookId, isApproved: true } }),
+  ]);
+
+  return NextResponse.json({
+    reviews,
+    pagination: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
+  });
+}
+```
+
+**优化效果**：原来 `/api/books/[id]` 返回 `take: 10` 条评论且无法加载更多，现在支持分页无限加载。
+
+---
+
+#### 5.2 useBookReviews — useInfiniteQuery
+
+**新增** `hooks/use-book-reviews.ts`:
+
+```typescript
+export function useBookReviews(bookId: number | null) {
+  return useInfiniteQuery<ReviewsResponse>({
+    queryKey: ["book-reviews", bookId],
+    queryFn: ({ pageParam }) =>
+      fetcher<ReviewsResponse>(`/api/books/${bookId}/reviews?page=${pageParam}&limit=10`),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, totalPages } = lastPage.pagination;
+      return page < totalPages ? page + 1 : undefined;
+    },
+    enabled: !!bookId,
+  });
+}
+```
+
+**优化效果**：评论按需加载，初始仅请求第1页（10条），滚动到底部自动加载下一页。
+
+---
+
+#### 5.3 ReviewList 虚拟列表组件
+
+**新增** `components/review-list.tsx`:
+
+```typescript
+import { useVirtualizer } from "@tanstack/react-virtual";
+
+export default function ReviewList({ reviews, hasNextPage, isFetchingNextPage, fetchNextPage }) {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: hasNextPage ? reviews.length + 1 : reviews.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 120,
+    overscan: 5,
+  });
+
+  return (
+    <div ref={parentRef} className="max-h-[600px] overflow-auto">
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+        {virtualizer.getVirtualItems().map((virtualItem) => {
+          // 渲染评论行 或 "加载更多" 行
+          // 使用 absolute positioning + transform translateY
+        })}
+      </div>
+    </div>
+  );
+}
+```
+
+**关键特性**：
+- `max-h-[600px] overflow-auto`：评论区域最大高度600px，超出滚动
+- `overscan: 5`：预渲染5条评论在视口外，保证滚动流畅
+- `estimateSize: () => 120`：每条评论预估高度120px
+- 加载更多行：鼠标悬停或点击触发 `fetchNextPage`
+- 复用 `StarRating` 组件（Phase 4 创建的 memo 组件）
+
+---
+
+#### 5.4 书籍详情页改造
+
+**修改前**（内联评论渲染，最多10条）:
+
+```typescript
+// 所有评论随书籍详情一起加载，最多10条
+const { data: book } = useBookDetail(parseInt(id));
+
+// 内联渲染
+{book.reviews.map((review) => (
+  <div key={review.id}>...</div>
+))}
+```
+
+**修改后**（虚拟列表 + 无限滚动）:
+
+```typescript
+const { data: book } = useBookDetail(parseInt(id));
+const bookReviewsQuery = useBookReviews(book?.id ?? null);
+
+const allReviews = useMemo(() => {
+  return bookReviewsQuery.data?.pages.flatMap((page) => page.reviews) ?? [];
+}, [bookReviewsQuery.data]);
+
+const totalReviewCount = bookReviewsQuery.data?.pages[0]?.pagination.totalCount
+  ?? book?._count.reviews ?? 0;
+
+// 渲染
+<ReviewList
+  reviews={allReviews}
+  hasNextPage={bookReviewsQuery.hasNextPage}
+  isFetchingNextPage={bookReviewsQuery.isFetchingNextPage}
+  fetchNextPage={bookReviewsQuery.fetchNextPage}
+/>
+```
+
+---
+
+### 验证结果
+
+1. **评论分页 API 验证**：
+   - 访问 `/api/books/1/reviews?page=1&limit=10`，确认返回 `{ reviews, pagination }` 格式
+   - 确认 `pagination.totalPages` 正确计算
+   - 确认 `page=2` 返回不同的评论列表
+
+2. **虚拟列表验证**：
+   - 打开有多条评论的书籍详情页
+   - 评论区域有 600px 最大高度，超出时出现滚动条
+   - 滚动到底部时出现 "Load more reviews" 按钮
+   - 点击后加载下一页评论，无白屏闪烁
+   - React DevTools Profiler 确认滚动时只有可见评论行在渲染
+
+3. **TypeScript 编译**：`npx tsc --noEmit` 仅报告预已有错误，未引入新错误
+
+---
+
+### 性能指标对比
+
+| 指标 | 修改前 | 修改后 |
+|------|--------|--------|
+| 评论初始加载 | 随书籍详情一起加载（最多10条） | 独立分页请求（10条/页） |
+| 100条评论DOM节点 | 100个DOM节点全部渲染 | 仅渲染可见区域 + 5条overscan ≈ 10-15个节点 |
+| 滚动性能 | 所有评论都在DOM中，长列表滚动卡顿 | 虚拟滚动，始终只渲染少量节点 |
+| 加载更多评论 | 无法加载更多 | hover/点击自动加载下一页 |
+| 评论总数显示 | 显示实际渲染数量 | 显示数据库总计数 |
+
+---
+
+### 注意事项
+
+1. **收藏页面未添加虚拟列表**：收藏数量通常 < 50，CSS Grid 虚拟化收益低且实现复杂度较高，暂不添加。如后续收藏数增长，可使用 `useVirtualizer` 的网格模式。
+2. **评论 API 与书籍详情 API 分离**：书籍详情 API 仍返回 `take: 10` 的评论用于初始渲染（首屏数据），`useBookReviews` 从第1页开始独立请求。两个数据源独立缓存，互不干扰。
+3. **`useVirtualizer` 的 `measureElement`**：虚拟列表使用动态测量确保每条评论高度准确。`estimateSize: () => 120` 仅用于初始预估。
+4. **`useMemo` 缓存 `allReviews`**：`useInfiniteQuery` 的 `data.pages` 在新页面加载时会变化，`useMemo` 确保只在数据变化时重新展平。
+5. **`@tanstack/react-virtual` 体积**：约 3KB gzip，对 bundle 影响极小。
