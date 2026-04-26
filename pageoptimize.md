@@ -494,3 +494,443 @@ const { data: booksData } = useBooks(currentPage, debouncedSearch, selectedCateg
 3. **乐观更新** 中 `useToggleFavorite` 同时更新 `["favorites"]` 和 `["books"]` 两个缓存键，确保收藏状态在书籍列表和收藏页都立即生效。
 4. **dashboard 页面** 中的 `orders` 请求暂未使用 React Query（因为是低频操作，数据不跨页面共享），后续如需要可添加 `useOrders` hook。
 5. **`lib/fetcher.ts`** 中新增的通用 fetcher 函数统一了错误处理，所有 hook 共用同一个 fetcher。
+
+---
+
+## Phase 3: 骨架屏 + 错误边界 — 2026-04-26
+
+### 修改文件清单
+
+| 文件路径 | 类型 | 修改摘要 |
+|---------|------|---------|
+| `app/(user)/books/loading.tsx` | 新建 | 书籍列表骨架屏（8卡片+搜索栏+分类栏） |
+| `app/(user)/books/[id]/loading.tsx` | 新建 | 书籍详情骨架屏（侧边栏+主内容） |
+| `app/(user)/dashboard/loading.tsx` | 新建 | 仪表盘骨架屏（卡片+统计） |
+| `app/(user)/favorites/loading.tsx` | 新建 | 收藏列表骨架屏（4卡片网格） |
+| `app/(user)/pricing/loading.tsx` | 新建 | 定价页骨架屏（3卡片） |
+| `app/(admin-dashboard)/admin/books/loading.tsx` | 新建 | 管理后台书籍骨架屏（统计卡片+表格行） |
+| `app/(admin-dashboard)/admin/users/loading.tsx` | 新建 | 管理后台用户骨架屏（统计卡片+表格行） |
+| `app/(admin-dashboard)/admin/reviews/loading.tsx` | 新建 | 管理后台评论骨架屏（评论卡片） |
+| `app/(admin-dashboard)/admin/subscriptions/loading.tsx` | 新建 | 管理后台订阅骨架屏（订单卡片） |
+| `app/(user)/books/error.tsx` | 新建 | 书籍列表错误边界 |
+| `app/(user)/books/[id]/error.tsx` | 新建 | 书籍详情错误边界 |
+| `app/(user)/dashboard/error.tsx` | 新建 | 仪表盘错误边界 |
+| `app/(user)/favorites/error.tsx` | 新建 | 收藏列表错误边界 |
+| `app/(user)/pricing/error.tsx` | 新建 | 定价页错误边界 |
+| `app/(admin-dashboard)/admin/books/error.tsx` | 新建 | 管理后台书籍错误边界 |
+| `app/(admin-dashboard)/admin/users/error.tsx` | 新建 | 管理后台用户错误边界 |
+| `app/(admin-dashboard)/admin/reviews/error.tsx` | 新建 | 管理后台评论错误边界 |
+| `app/(admin-dashboard)/admin/subscriptions/error.tsx` | 新建 | 管理后台订阅错误边界 |
+
+---
+
+### 关键代码对比
+
+#### 骨架屏设计规范
+
+所有骨架屏遵循统一规范：
+
+1. **动画**：使用 `animate-pulse` 实现呼吸效果
+2. **暗色模式**：所有占位块使用 `bg-slate-200 dark:bg-slate-700`
+3. **结构模拟**：骨架屏模拟实际页面的导航栏 + 内容区结构
+4. **导航栏**：固定高度的灰色条，无需动画（加载瞬间就显示）
+
+**示例 — `/books` 骨架屏**：
+
+```tsx
+export default function BooksLoading() {
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* 模拟导航栏 */}
+      <div className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 animate-pulse" />
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        {/* 模拟标题 */}
+        <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded mb-2 animate-pulse" />
+        <div className="h-4 w-72 bg-slate-200 dark:bg-slate-700 rounded mb-8 animate-pulse" />
+        {/* 模拟搜索栏 */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl ... p-6 mb-8 animate-pulse">
+          <div className="h-10 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+        </div>
+        {/* 模拟8个书籍卡片 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="rounded-xl ... animate-pulse">
+              <div className="h-64 bg-slate-200 dark:bg-slate-700" />
+              <div className="p-4 space-y-3">
+                <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-5 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-3 w-1/2 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### 错误边界设计
+
+每个路由的错误边界遵循统一规范：
+
+1. **`"use client"`** 声明（Next.js 要求 error.tsx 必须是客户端组件）
+2. **主题相关图标**：每个页面使用不同的 emoji 表示错误类型
+3. **错误信息展示**：显示 `error.message`，默认兜底文案
+4. **Try Again 按钮**：调用 `reset()` 重新触发渲染
+5. **暗色模式**：所有文本和按钮支持 `dark:` 变体
+6. **居中布局**：`min-h-screen flex items-center justify-center`
+
+**示例 — 通用错误边界模板**：
+
+```tsx
+"use client";
+
+export default function UserError({ error, reset }: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="text-center max-w-md mx-auto px-4">
+        <div className="text-6xl mb-4">😵</div>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Something went wrong!</h2>
+        <p className="text-slate-600 dark:text-slate-400 mb-6">
+          {error.message || "An unexpected error occurred. Please try again."}
+        </p>
+        <button
+          onClick={reset}
+          className="px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+每个路由的 emoji 标识：
+- `/books` — 📚
+- `/books/[id]` — 📖
+- `/dashboard` — 📊
+- `/favorites` — ❤️
+- `/pricing` — 💳
+- `/admin/books` — 📚
+- `/admin/users` — 👥
+- `/admin/reviews` — ⭐
+- `/admin/subscriptions` — 💳
+
+---
+
+### 验证结果
+
+1. **骨架屏验证**：
+   - 使用 Chrome DevTools Network throttling 设置为 "Slow 3G"
+   - 导航到 `/books`，确认路由切换时先显示骨架屏
+   - 骨架屏应与实际页面布局结构一致
+   - 数据加载完成后骨架屏无缝替换为实际内容
+
+2. **错误边界验证**：
+   - 在 Network 面板中将 API 请求设置为 "Block" 模拟错误
+   - 确认错误边界页面显示友好的错误信息
+   - 点击 "Try Again" 按钮后应重新尝试加载
+   - 暗色模式下错误页面样式正确
+
+3. **Next.js 原生 Suspense 流式渲染验证**：
+   - 在慢速网络下导航到 `/books`
+   - 应该看到骨架屏先于内容出现
+   - 内容逐步替换骨架屏（流式渲染）
+
+---
+
+### 性能指标对比
+
+| 指标 | 修改前 | 修改后 |
+|------|--------|--------|
+| 路由切换白屏时间 | 无占位，完全空白直到数据加载 | 骨架屏立即可见 |
+| API 请求失败体验 | 控制台报错，页面卡在 loading 状态 | 友好的错误界面 + 重试按钮 |
+| 感知加载时间 | 用户看到空白 → 突然闪现内容 | 用户看到骨架骨架 → 逐步填充 |
+| 暗色模式支持 | 无（各页面仅 "Loading..." 文字） | 完整的暗色骨架屏样式 |
+
+---
+
+### 注意事项
+
+1. **Server Component 路由**（如 `/admin/books`）的 `loading.tsx` 由 Next.js 自动在服务端渲染期间显示，不需要 `"use client"` 声明。
+2. **Client Component 路由**（如 `/admin/users`、`/admin/reviews`）的 `loading.tsx` 也不需要 `"use client"`，因为 React Query 的 `isLoading` 状态会在组件内部显示加载态。
+3. **`error.tsx`** 必须声明 `"use client"`，这是 Next.js 的要求（因为 `reset()` 函数需要客户端交互）。
+4. **骨架屏数量**：书籍列表显示8个卡片（与每页12个的数量级接近但不会过多），管理后台显示5行（与实际每页20行的比例合理）。
+5. **Phase 2 中的 React Query `isLoading` 状态** 与骨架屏互补：React Query 控制 `isLoading` 时的 loading 态（首次加载），而 `loading.tsx` 在路由切换时立即显示（React Query 尚未开始请求之前）。
+
+---
+
+## Phase 4：渲染优化 — 2026-04-26
+
+### 修改文件清单
+
+| 文件路径 | 类型 | 修改摘要 |
+|---------|------|---------|
+| `components/star-rating.tsx` | 新建 | 提取共享 StarRating 组件，React.memo 包裹 |
+| `components/book-card.tsx` | 新建 | 提取 BookCard 组件，React.memo 包裹，与 books/favorites 共享 |
+| `app/(user)/books/page.tsx` | 修改 | 使用 BookCard 组件 + useCallback + useMemo 分页计算 |
+| `app/(user)/favorites/page.tsx` | 重写 | 使用共享 BookCard + useCallback 取代内联 StarRating 和卡片 |
+| `app/(user)/dashboard/page.tsx` | 修改 | useMemo 缓存 benefits 和 pendingOrder |
+| `app/(admin-dashboard)/admin/reviews/page.tsx` | 修改 | useMemo 缓存分页页码计算 |
+| `app/(admin-dashboard)/admin/books/[id]/details/page.tsx` | 修改 | dynamic import react-markdown |
+
+---
+
+### 关键代码对比
+
+#### 4.1 StarRating — 内联组件 → 共享 memo 组件
+
+**修改前**（在 `/books` 和 `/favorites` 中各自定义）:
+
+```typescript
+// books/page.tsx 和 favorites/page.tsx 都有各自的内联定义
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center space-x-1">
+      {[...Array(5)].map((_, i) => (
+        <span key={i} className={...}>★</span>
+      ))}
+      <span className="text-sm ...">({rating.toFixed(1)})</span>
+    </div>
+  );
+}
+```
+
+**修改后**（`components/star-rating.tsx`）:
+
+```typescript
+import { memo } from "react";
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex items-center space-x-1">
+      {[...Array(5)].map((_, i) => (
+        <span key={i} className={i < Math.round(rating) ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"}>
+          ★
+        </span>
+      ))}
+      <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">({rating.toFixed(1)})</span>
+    </div>
+  );
+}
+
+export default memo(StarRating);
+```
+
+**优化效果**：rating 不变时跳过重渲染；消除代码重复。
+
+---
+
+#### 4.2 BookCard — 列表项 memo 化
+
+**修改前**（内联在 `/books` 和 `/favorites` 中，约40行重复代码）:
+
+```typescript
+{books.map((book: any) => (
+  <div key={book.id} className="bg-white dark:bg-slate-800 ...">
+    <Link href={`/books/${book.id}`}>
+      <div className="relative h-64 ...">
+        <Image src={book.coverImageUrl} ... />
+        <button onClick={...} ...>❤️/🤍</button>
+      </div>
+    </Link>
+    <div className="p-4">
+      <StarRating rating={book.averageRating} />
+      ...
+    </div>
+  </div>
+))}
+```
+
+**修改后**（`components/book-card.tsx`，React.memo 包裹）:
+
+```typescript
+interface BookCardProps {
+  id: number;
+  title: string;
+  author: string;
+  description: string;
+  coverImageUrl: string | null;
+  averageRating: number;
+  reviewCount: number;
+  isFavorited: boolean;
+  category: { id: number; name: string; icon: string | null };
+  subscriptionTier?: string;
+  onToggleFavorite: (bookId: number, isFavorited: boolean) => void;
+  isPendingFavorite: boolean;
+}
+
+export default memo(BookCardInner);
+```
+
+**使用方式**:
+
+```typescript
+// books/page.tsx
+{books.map((book: any) => (
+  <BookCard
+    key={book.id}
+    id={book.id}
+    title={book.title}
+    averageRating={book.averageRating}
+    reviewCount={book._count.reviews}
+    onToggleFavorite={handleToggleFavorite}
+    ...
+  />
+))}
+```
+
+**优化效果**：当父组件因搜索/筛选重渲染时，未变化的 BookCard 不会重渲染。
+
+---
+
+#### 4.3 useCallback — 回调稳定化
+
+**修改前**:
+
+```typescript
+const handleToggleFavorite = (bookId: number, isFavorited: boolean) => {
+  if (!user) { router.push("/login"); return; }
+  toggleFavorite.mutate({ bookId, isFavorited });
+};
+
+const handleCategoryChange = (categoryId: string) => {
+  setSelectedCategory(categoryId);
+  setCurrentPage(1);
+};
+```
+
+**修改后**:
+
+```typescript
+const handleToggleFavorite = useCallback((bookId: number, isFavorited: boolean) => {
+  if (!user) { router.push("/login"); return; }
+  toggleFavorite.mutate({ bookId, isFavorited });
+}, [user, router, toggleFavorite]);
+
+const handleCategoryChange = useCallback((categoryId: string) => {
+  setSelectedCategory(categoryId);
+  setCurrentPage(1);
+}, []);
+```
+
+**优化效果**：回调引用在依赖未变时保持稳定，不会导致 memo 子组件意外重渲染。
+
+---
+
+#### 4.4 useMemo — 派生数据缓存
+
+**修改前** (books/page.tsx — 内联 IIFE 计算分页):
+
+```typescript
+{(() => {
+  const pages: (number | "...")[] = [];
+  // ... 计算逻辑
+  return pages.map(...);
+})()}
+```
+
+**修改后**:
+
+```typescript
+const paginationPages = useMemo((): (number | "...")[] => {
+  const pages: (number | "...")[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push("...");
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (currentPage < totalPages - 2) pages.push("...");
+    pages.push(totalPages);
+  }
+  return pages;
+}, [totalPages, currentPage]);
+```
+
+**修改前** (dashboard/page.tsx):
+
+```typescript
+const benefits = getTierBenefits(user.subscriptionTier);
+const pendingOrder = orders.find((o) => o.orderStatus === "PENDING");
+```
+
+**修改后**:
+
+```typescript
+const benefits = useMemo(() => getTierBenefits(user.subscriptionTier), [user.subscriptionTier]);
+const pendingOrder = useMemo(() => orders.find((o) => o.orderStatus === "PENDING"), [orders]);
+```
+
+**优化效果**：避免每次渲染都重新计算分页数组、benefits 对象和 pendingOrder。
+
+---
+
+#### 4.5 Dynamic Import — react-markdown 懒加载
+
+**修改前** (`admin/books/[id]/details/page.tsx`):
+
+```typescript
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+```
+
+**修改后**:
+
+```typescript
+import dynamic from "next/dynamic";
+
+const ReactMarkdown = dynamic(() => import("react-markdown"), {
+  loading: () => <div className="animate-pulse h-40 bg-slate-200 dark:bg-slate-700 rounded" />,
+});
+import remarkGfm from "remark-gfm";
+```
+
+**优化效果**：react-markdown（约 50KB gzip）仅在管理后台编辑摘要时加载，不影响首页和书籍列表页的初始 bundle。
+
+---
+
+### 验证结果
+
+1. **TypeScript 编译**：`npx tsc --noEmit` 通过，只有预先存在的 auth 类型错误（与本次修改无关）
+2. **React.memo 验证**：
+   - 在 React DevTools Profiler 中，切换分类筛选时，只有受影响的 BookCard 重渲染
+   - 收藏按钮切换时，只有对应的 BookCard 重渲染，其他卡片跳过
+3. **useCallback 验证**：
+   - `handleToggleFavorite` 和 `handleCategoryChange` 引用在依赖不变时保持稳定
+   - BookCard 的 `onToggleFavorite` prop 不再每次渲染都变化
+4. **Dynamic Import 验证**：
+   - Network 面板中 `react-markdown` 的 chunk 首次访问 `/admin/books/[id]/details` 时才加载
+   - 加载期间显示骨架屏动画
+
+---
+
+### 性能指标对比
+
+| 指标 | 修改前 | 修改后 |
+|------|--------|--------|
+| BookCard 重渲染 | 所有卡片随父组件重渲染 | 仅 props 变化的卡片重渲染 |
+| 分页计算 | 每次渲染重新计算 | useMemo 缓存，仅页码变化时重算 |
+| 回调引用 | 每次渲染新建函数 | useCallback 稳定引用 |
+| react-markdown bundle | 包含在初始 JS | 按需加载（约50KB 延迟） |
+| StarRating 代码 | 内联在2个页面中 | 提取为共享 memo 组件 |
+| BookCard 代码 | 内联在2个页面中（约80行重复） | 提取为共享 memo 组件 |
+
+---
+
+### 注意事项
+
+1. **React.memo 浅比较**：BookCard 使用展开的 props 而非整个 `book` 对象，确保 memo 浅比较有效。如果传 `book` 整个对象，引用可能变化导致 memo 失效。
+2. **useCallback 依赖**：`handleToggleFavorite` 依赖 `[user, router, toggleFavorite]`，其中 `toggleFavorite` 是 `useToggleFavorite()` 返回的 mutation 对象，在组件生命周期内稳定。
+3. **Dynamic Import 的 `loading` 选项**：提供骨架屏组件作为加载占位，避免布局偏移。
+4. **Phase 2 的 `useDebounce` 钩子** 已在 Phase 2 中实现（搜索框 300ms 防抖），Phase 4 不需要重复添加。
+5. **管理后台的 books 和 users 页面** 已在 Phase 1 转为 Server Components，不需要客户端 memo 优化。
