@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Pagination } from "@/components/pagination";
 
 export default async function AdminBookPage({
@@ -173,9 +174,11 @@ export default async function AdminBookPage({
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-3">
                           {book.coverImageUrl ? (
-                            <img
+                            <Image
                               src={book.coverImageUrl}
                               alt={book.title}
+                              width={48}
+                              height={64}
                               className="w-12 h-16 object-cover rounded"
                             />
                           ) : (

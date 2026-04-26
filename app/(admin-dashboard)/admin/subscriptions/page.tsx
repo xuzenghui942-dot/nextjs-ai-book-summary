@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -287,9 +288,11 @@ export default function SubscriptionPage() {
                 {order.paymentProofUrl && (
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
                     <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Payment Proof</h4>
-                    <img
+                    <Image
                       src={order.paymentProofUrl}
                       alt="Payment proof"
+                      width={400}
+                      height={128}
                       className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-90"
                       onClick={() => setSelectedImage(order.paymentProofUrl)}
                     />
@@ -377,9 +380,11 @@ export default function SubscriptionPage() {
           onClick={() => setSelectedImage(null)}
         >
           <div className="relative max-w-4xl max-h-full">
-            <img
+            <Image
               src={selectedImage}
               alt="Payment proof"
+              width={896}
+              height={896}
               className="max-w-full max-h-[90vh] rounded-lg"
             />
             <button

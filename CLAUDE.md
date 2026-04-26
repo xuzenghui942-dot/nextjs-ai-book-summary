@@ -100,5 +100,6 @@ const favorites = await prisma.userFavorite.findMany({...});
 - [x] Phase 3: 骨架屏 + 错误边界 ✅
 - [x] Phase 4: 渲染优化 (memo/callback/debounce/dynamic import) ✅
 - [x] Phase 5: 虚拟列表（评论无限滚动 + useVirtualizer）✅
+- [x] Phase 6: next.config.ts + 全局优化 ✅
 - [ ] Phase 5: 虚拟列表
 - [ ] Phase 6: next.config.ts + 全局优化

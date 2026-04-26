@@ -32,7 +32,12 @@ function getPageNumbers(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
-export function Pagination({ currentPage, totalPages, basePath, searchParams = {} }: PaginationProps) {
+export function Pagination({
+  currentPage,
+  totalPages,
+  basePath,
+  searchParams = {},
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   const pages = getPageNumbers(currentPage, totalPages);
@@ -63,10 +68,7 @@ export function Pagination({ currentPage, totalPages, basePath, searchParams = {
             ...
           </span>
         ) : page === currentPage ? (
-          <span
-            key={page}
-            className="px-4 py-2 rounded-lg font-medium bg-emerald-600 text-white"
-          >
+          <span key={page} className="px-4 py-2 rounded-lg font-medium bg-emerald-600 text-white">
             {page}
           </span>
         ) : (

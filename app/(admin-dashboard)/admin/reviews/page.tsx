@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -181,7 +182,7 @@ export default function ReviewsPage() {
             >
               <div className="flex items-start space-x-4">
                 {review.book.coverImageUrl && (
-                  <img src={review.book.coverImageUrl} alt={review.book.title} className="w-20 h-28 object-cover rounded-lg" />
+                  <Image src={review.book.coverImageUrl} alt={review.book.title} width={80} height={112} className="w-20 h-28 object-cover rounded-lg" />
                 )}
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-3">

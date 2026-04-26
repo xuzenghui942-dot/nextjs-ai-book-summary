@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -347,9 +348,11 @@ export default function EditBookPage() {
               {book?.coverImageUrl && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Current Cover Image</label>
-                  <img
+                  <Image
                     src={book.coverImageUrl}
                     alt={book.title}
+                    width={128}
+                    height={192}
                     className="w-32 h-48 object-cover rounded-lg border border-slate-200 dark:border-slate-700"
                   />
                 </div>

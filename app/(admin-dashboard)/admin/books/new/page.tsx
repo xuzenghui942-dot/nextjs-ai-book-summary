@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -384,9 +385,12 @@ export default function AddNewBookPage() {
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 rounded-lg"
                   />
                   {coverImagePreview && (
-                    <img
+                    <Image
                       src={coverImagePreview}
                       alt="Cover preview"
+                      width={128}
+                      height={192}
+                      unoptimized
                       className="mt-2 w-32 h-48 object-cover rounded-lg border border-slate-200 dark:border-slate-700"
                     />
                   )}

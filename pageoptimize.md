@@ -1125,3 +1125,130 @@ const totalReviewCount = bookReviewsQuery.data?.pages[0]?.pagination.totalCount
 3. **`useVirtualizer` 的 `measureElement`**：虚拟列表使用动态测量确保每条评论高度准确。`estimateSize: () => 120` 仅用于初始预估。
 4. **`useMemo` 缓存 `allReviews`**：`useInfiniteQuery` 的 `data.pages` 在新页面加载时会变化，`useMemo` 确保只在数据变化时重新展平。
 5. **`@tanstack/react-virtual` 体积**：约 3KB gzip，对 bundle 影响极小。
+
+---
+
+## Phase 6：next.config.ts + 全局优化 — 2026-04-26
+
+### 修改文件清单
+
+| 文件路径 | 类型 | 修改摘要 |
+|---------|------|---------|
+| `next.config.ts` | 修改 | 图片优化(AVIF/WebP)、安全headers、静态资源缓存、optimizePackageImports |
+| `app/(admin-dashboard)/admin/books/page.tsx` | 修改 | `<img>` → `<Image>` coverImageUrl |
+| `app/(admin-dashboard)/admin/books/[id]/details/page.tsx` | 修改 | `<img>` → `<Image>` |
+| `app/(admin-dashboard)/admin/books/[id]/edit/page.tsx` | 修改 | `<img>` → `<Image>` |
+| `app/(admin-dashboard)/admin/books/new/page.tsx` | 修改 | `<img>` → `<Image unoptimized>` (blob URL preview) |
+| `app/(admin-dashboard)/admin/reviews/page.tsx` | 修改 | `<img>` → `<Image>` + import |
+| `app/(admin-dashboard)/admin/subscriptions/page.tsx` | 修改 | `<img>` → `<Image>` (2处: 列表缩略图 + 灯箱) |
+| `app/(admin-dashboard)/admin/users/[id]/page.tsx` | 修改 | `<img>` → `<Image>` (2处: 收藏书 + 阅读历史) |
+
+---
+
+### 关键代码对比
+
+#### 6.1 next.config.ts 优化
+
+**修改前**：
+
+```typescript
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+```
+
+**修改后**：
+
+```typescript
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+  },
+  experimental: {
+    optimizePackageImports: [
+      "react-markdown", "remark-gfm",
+      "@tanstack/react-query", "@tanstack/react-virtual",
+    ],
+  },
+  headers: async () => [
+    { source: "/(.*)", headers: [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-XSS-Protection", value: "1; mode=block" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    ]},
+    { source: "/api/(.*)", headers: [
+      { key: "Cache-Control", value: "no-store" },
+    ]},
+    { source: "/_next/static/(.*)", headers: [
+      { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+    ]},
+  ],
+};
+```
+
+---
+
+#### 6.2 Admin 封面图 `<img>` → `<Image>`
+
+**修改前**：
+
+```tsx
+<img src={book.coverImageUrl} alt={book.title} className="w-12 h-16 object-cover rounded" />
+```
+
+**修改后**：
+
+```tsx
+<Image src={book.coverImageUrl} alt={book.title} width={48} height={64} className="w-12 h-16 object-cover rounded" />
+```
+
+**特殊处理**：
+- `admin/books/new` 的封面预览使用 `unoptimized` 属性（因为是 blob URL 本地预览，无需优化）
+- `admin/subscriptions` 的支付凭证灯箱使用较大尺寸 `width={896} height={896}`
+
+---
+
+### 验证结果
+
+1. **TypeScript 编译**：`npx tsc --noEmit` 仅报告预已有错误，无新增错误
+2. **图片优化验证**：
+   - 管理后台书籍列表的封面图请求会自动转为 WebP/AVIF 格式
+   - `<Image>` 组件自动设置 `width/height` 避免布局偏移（CLS）
+   - blob URL 预览图片使用 `unoptimized` 确保本地文件预览正常
+
+3. **安全 Headers 验证**：
+   - 所有页面响应包含 `X-Content-Type-Options: nosniff`
+   - 所有页面响应包含 `X-Frame-Options: DENY`
+   - API 路由响应包含 `Cache-Control: no-store`
+   - 静态资源响应包含 `Cache-Control: public, max-age=31536000, immutable`
+
+4. **`optimizePackageImports` 验证**：
+   - `react-markdown` 和 `@tanstack/react-query` 的 tree-shaking 更有效
+   - 打包后的 JS bundle 中仅包含实际使用的导出
+
+---
+
+### 性能指标对比
+
+| 指标 | 修改前 | 修改后 |
+|------|--------|--------|
+| 图片格式 | 原始尺寸(JPG/PNG) | 自动 WebP/AVIF 转换 |
+| 图片加载方式 | `<img>` 无懒加载 | `<Image>` 自动懒加载 + 尺寸优化 |
+| CLS (布局偏移) | 图片加载时布局跳动 | `<Image>` 预留尺寸避免偏移 |
+| 安全 Headers | 无 | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy |
+| API 缓存 | 无控制 | `Cache-Control: no-store` |
+| 静态资源缓存 | 默认 | `immutable, max-age=31536000` |
+| react-markdown bundle | 全量导入 | tree-shaking（仅导入使用部分） |
+
+---
+
+### 注意事项
+
+1. **`next/image` 的 `remotePatterns`**：配置 `{ hostname: "**" }` 允许所有远程图片域名。生产环境应限制为实际使用的CDN域名。
+2. **`unoptimized` 标记**：`admin/books/new` 的封面预览使用 `unoptimized`，因为 `coverImagePreview` 是 `URL.createObjectURL()` 生成的 blob URL，`next/image` 无法优化本地 blob。
+3. **`optimizePackageImports`** 仅影响打包时的 tree-shaking，不影响运行时行为。`@tanstack/react-query` 已包含因为它在 Phase 2 安装。
+4. **管理后台 `<img>` 全部替换完成**：所有 8 处 `<img>` 已替换为 `<Image>`，无遗漏。

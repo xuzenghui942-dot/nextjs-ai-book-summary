@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -449,9 +450,11 @@ export default function UserDetailsPage() {
                         className="flex items-center space-x-3 p-3 border border-slate-200 dark:border-slate-800 rounded-lg"
                       >
                         {fav.book.coverImageUrl && (
-                          <img
+                          <Image
                             src={fav.book.coverImageUrl}
                             alt={fav.book.title}
+                            width={48}
+                            height={64}
                             className="w-12 h-16 object-cover rounded"
                           />
                         )}
@@ -480,9 +483,11 @@ export default function UserDetailsPage() {
                         className="flex items-center space-x-3 p-3 border border-slate-200 dark:border-slate-800 rounded-lg"
                       >
                         {history.book.coverImageUrl && (
-                          <img
+                          <Image
                             src={history.book.coverImageUrl}
                             alt={history.book.title}
+                            width={48}
+                            height={64}
                             className="w-12 h-16 object-cover rounded"
                           />
                         )}

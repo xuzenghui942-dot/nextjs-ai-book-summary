@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 
@@ -112,9 +113,11 @@ export default function BookDetailsPage() {
         <div className="col-span-1 space-y-6">
           {book.coverImageUrl && (
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-              <img
+              <Image
                 src={book.coverImageUrl}
                 alt={book.title}
+                width={400}
+                height={600}
                 className="w-full rounded-lg shadow-lg"
               />
             </div>
