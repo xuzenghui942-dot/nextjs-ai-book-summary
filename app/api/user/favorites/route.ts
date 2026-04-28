@@ -1,12 +1,9 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { getUserFavoritesWithMeta } from "@/lib/db/queries";
+import { favoriteBodySchema } from "@/lib/validations/favorite";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 
-const favoriteSchema = z.object({
-  bookId: z.number().positive(),
-});
 export async function GET() {
   try {
     const session = await auth();
@@ -31,14 +28,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await request.json();
-    const validation = favoriteSchema.safeParse(body);
+    const validation = favoriteBodySchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         {
-          error: "Invaild request",
+          error: "Invalid request",
           details: validation.error.issues,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const { bookId } = validation.data;

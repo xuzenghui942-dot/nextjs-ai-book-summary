@@ -1,23 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { BookListItem } from "@/types/api";
+import type { BooksResponse } from "@/types/api";
 
 export type UseBooksParams = {
   search?: string;
   category?: string;
   page: number;
   limit: number;
-};
-
-export type BooksResponse = {
-  books: BookListItem[];
-  pagination: {
-    page: number;
-    limit: number;
-    totalCount: number;
-    totalPages: number;
-  };
 };
 
 async function fetchBooks({ search, category, page, limit }: UseBooksParams): Promise<BooksResponse> {

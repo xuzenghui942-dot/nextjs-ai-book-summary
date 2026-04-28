@@ -1,20 +1,34 @@
 import { auth } from "@/lib/auth";
 import { getPublishedBooksWithMeta } from "@/lib/db/queries";
+import { booksQuerySchema } from "@/lib/validations/book";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    const searchParams = request.nextUrl.searchParams;
-    const search = searchParams.get("search") || "";
-    const category = searchParams.get("category") || "";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "12");
+    const validation = booksQuerySchema.safeParse({
+      search: request.nextUrl.searchParams.get("search") ?? undefined,
+      category: request.nextUrl.searchParams.get("category") ?? undefined,
+      page: request.nextUrl.searchParams.get("page") ?? undefined,
+      limit: request.nextUrl.searchParams.get("limit") ?? undefined,
+    });
+
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid books query",
+          details: validation.error.issues,
+        },
+        { status: 400 },
+      );
+    }
+
+    const { search, category, page, limit } = validation.data;
 
     const result = await getPublishedBooksWithMeta({
       userId: session?.user?.id,
       search,
-      categoryId: category ? parseInt(category) : undefined,
+      categoryId: category,
       page,
       limit,
     });

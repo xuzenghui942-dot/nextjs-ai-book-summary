@@ -3,8 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryKey } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import type { BooksResponse } from "@/hooks/useBooks";
-import type { BookDetailDTO, BookListItem, FavoriteItem } from "@/types/api";
+import type { BookDetailDTO, BookListItem, BooksResponse, FavoriteItem } from "@/types/api";
 
 type ToggleFavoriteInput = {
   bookId: number;

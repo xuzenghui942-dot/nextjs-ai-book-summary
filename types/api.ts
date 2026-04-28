@@ -17,6 +17,16 @@ export type PaginatedResponse<T> = {
   };
 };
 
+export type BooksResponse = {
+  books: BookListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+  };
+};
+
 export type UserProfile = {
   id: string;
   email: string;
