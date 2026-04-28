@@ -1237,14 +1237,250 @@ Error occurred prerendering page "/login"
 
 ### 实际执行记录
 
-（待 Step 4 完成后执行）
+#### 本次开发目标
+
+本次完成 Step 5：把 `/books` 页面的搜索、分类、分页状态从页面内手写 state 和 `updateURL()`，迁移到可复用 hook 中，并加入 300ms 防抖，避免搜索输入每个字符都立即触发图书请求。
+
+本次完成范围：
+
+1. 新增通用防抖 hook。
+2. 新增 books 筛选与 URL 同步 hook。
+3. 改造 `/books` 页面接入新 hook。
+4. 保留现有分页 UI，不提前做 Step 9 的分页控件优化。
+5. 保留当前 Suspense 边界，确保 `useSearchParams()` 不破坏 build。
+
+---
+
+#### 1. 新增 hooks/useDebounce.ts
+
+新增文件：
+
+```ts
+hooks/useDebounce.ts
+```
+
+实现内容：
+
+- 泛型函数 `useDebounce<T>(value, delay = 300)`。
+- 内部使用 `window.setTimeout` 延迟更新 debounced value。
+- value 或 delay 变化时清理旧 timer。
+- 默认延迟 300ms。
+
+设计说明：
+
+- 该 hook 不绑定 books 业务，可以被后续搜索框、admin filter 或其他输入场景复用。
+- 只负责值防抖，不负责 URL、请求或分页逻辑。
+
+---
+
+#### 2. 新增 hooks/useBookFilters.ts
+
+新增文件：
+
+```ts
+hooks/useBookFilters.ts
+```
+
+负责内容：
+
+- 从 URL 初始化：
+  - `search`
+  - `category`
+  - `page`
+- 归一化非法 URL 参数：
+  - `page` 非整数或小于 1 时归一为 `1`
+  - `category` 非正整数时归一为空字符串
+  - `search` 默认空字符串
+- 管理页面状态：
+  - `searchInput`
+  - `category`
+  - `page`
+- 生成请求参数：
+  - `queryFilters`
+- 同步 URL：
+  - 使用 `router.replace`
+  - 只写非默认值
+  - `search` 非空才写
+  - `category` 非空才写
+  - `page > 1` 才写
+
+返回值：
+
+```ts
+{
+  searchInput,
+  setSearchInput,
+  debouncedSearch,
+  category,
+  setCategory,
+  page,
+  setPage,
+  queryFilters,
+}
+```
+
+关键实现决策：
+
+- `queryFilters.search` 使用 `debouncedSearch.trim()`，因此图书请求只跟随防抖后的搜索词变化。
+- `setSearchInput` 内部会把 `page` 重置为 1。
+- `setCategory` 内部也会把 `page` 重置为 1。
+- URL 同步 effect 只做 `router.replace`，不在 effect 内同步 `setPage`，避免触发 React 19 的 `react-hooks/set-state-in-effect` 规则。
+
+---
+
+#### 3. app/(user)/books/page.tsx 改造
+
+修改文件：
+
+```ts
+app/(user)/books/page.tsx
+```
+
+删除的旧逻辑：
+
+- 页面内 `useState(searchQuery)`
+- 页面内 `useState(selectedCategory)`
+- 页面内 `useState(currentPage)`
+- `useSearchParams()` 直接在页面里解析筛选参数
+- `handleCategoryChange`
+- `updateURL`
+- 搜索 submit 时手动更新 URL
+
+新增接入：
+
+```ts
+const {
+  searchInput,
+  setSearchInput,
+  category,
+  setCategory,
+  page,
+  setPage,
+  queryFilters,
+} = useBookFilters(12);
+```
+
+`useBooks` 改为直接消费：
+
+```ts
+useBooks(queryFilters)
+```
+
+页面行为变化：
+
+- 搜索框输入绑定 `searchInput`。
+- 图书请求使用 `debouncedSearch`，连续输入时不会每个字符都请求。
+- 搜索 form submit 只 `preventDefault()`，不再手动 fetch 或 push URL。
+- 分类按钮调用 `setCategory`，自动重置 page。
+- 分页按钮调用 `setPage`，URL 同步由 hook 统一处理。
+- 页面仍保留 `Suspense` 包裹 `BooksContent`，符合 Next.js 对 `useSearchParams()` 的要求。
+
+---
+
+#### 4. 与计划的偏差
+
+本次没有抽象分页组件。
+
+原因：
+
+- 分页控件优化属于 Step 9。
+- Step 5 只解决搜索防抖和 URL 状态同步，避免提前扩大范围。
+
+本次没有做浏览器手动验证。
+
+原因：
+
+- 当前任务在代码层完成并通过 build。
+- 真实交互仍建议后续用浏览器验证 `/books?search=react&page=2&category=1` 刷新恢复、输入防抖和分类重置 page。
+
+---
+
+#### 5. 验证结果
+
+##### npm run build
+
+结果：
+
+```bash
+✅ 通过
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+✓ Generating static pages using 21 workers (36/36)
+```
+
+说明：
+
+- Step 5 新增 hooks 和 `/books` 页面改造通过 TypeScript 与 Next.js production build。
+- 仍有 Next.js warning：`middleware` 文件约定已 deprecated，建议后续迁移到 `proxy`。该 warning 不阻塞构建，不属于 Step 5 范围。
+
+##### npm run lint
+
+第一次 lint 结果：
+
+```bash
+❌ 失败
+✖ 54 problems (20 errors, 34 warnings)
+```
+
+其中 Step 5 新增问题：
+
+- `hooks/useBookFilters.ts` 在 effect 内调用 `setPage(1)`，触发 `react-hooks/set-state-in-effect`。
+
+已修复：
+
+- 将 page reset 移到 `setSearchInput` 和 `setCategory` 事件 setter 内。
+- URL 同步 effect 只负责 `router.replace`。
+
+第二次 lint 结果：
+
+```bash
+❌ 失败
+✖ 53 problems (19 errors, 34 warnings)
+```
+
+结论：
+
+- Step 5 新增 lint 错误已修复。
+- 剩余 53 个问题是既有历史债务，集中在 admin、dashboard、pricing、scripts、图片优化和 ThemeProvider。
+
+---
+
+#### 6. 遗留问题与下一步建议
+
+遗留问题：
+
+1. 未做浏览器手动验证，防抖请求次数和 URL replace 行为需要在实际页面确认。
+2. 当前分页 UI 仍会渲染所有页码，页数很多时可能撑爆页面；这是 Step 9 的范围。
+3. URL 同步使用 `router.replace`，符合计划要求，但也意味着搜索输入和分页切换不会增加浏览器历史记录。
+4. 如果用户在非第一页输入搜索词，当前实现会先把 page 重置为 1，再等待 debounced search 更新；这符合“筛选变化回第一页”，但可能产生一次旧搜索词 page=1 的中间状态。后续如需极致减少请求，可以在 Step 9 或 Step 11 引入更细的 pending filter 状态。
+
+下一步建议：
+
+1. 进入 Step 6，补 books query、favorite body、review body 的 Zod 校验。
+2. 或先做一次浏览器手动验收，验证 `/books` 的刷新恢复、输入防抖、分类切换和分页 URL。
 
 ### 验收标准
 
-- [ ] 连续输入只在停止 300ms 后请求。
-- [ ] `/books?search=react&page=2&category=1` 刷新后状态正确恢复。
-- [ ] 搜索时 page 不会读到旧值。
-- [ ] 使用 `useSearchParams` 的 books client 组件仍被 Suspense 包裹。
+- [x] 连续输入只在停止 300ms 后请求（`useBooks` 消费 `debouncedSearch`）。
+- [x] `/books?search=react&page=2&category=1` 刷新后状态正确恢复（hook 从 URL 初始化 search/category/page；尚未做浏览器手动验证）。
+- [x] 搜索时 page 不会读到旧值（搜索和分类 setter 会把 page 重置为 1，URL 统一由 hook 写入）。
+- [x] 使用 `useSearchParams` 的 books client 组件仍被 Suspense 包裹。
+
+### 阶段结论
+
+**Step 5 可判定为代码实现完成。**
+
+理由：
+
+- 计划要求的 `useDebounce` 和 `useBookFilters` 已落地。
+- `/books` 页面已删除旧的手写 URL 同步逻辑。
+- `npm run build` 完整通过。
+- 本次引入的 lint 问题已修复，剩余 lint 失败属于既有债务。
 
 ---
 
