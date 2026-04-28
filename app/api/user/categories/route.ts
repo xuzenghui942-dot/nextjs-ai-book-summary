@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
 export async function GET() {
   try {
@@ -10,6 +10,7 @@ export async function GET() {
         id: true,
         name: true,
         slug: true,
+        icon: true,
       },
     });
     return NextResponse.json(categories);

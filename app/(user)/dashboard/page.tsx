@@ -28,6 +28,7 @@ interface SubscriptionOrder {
 
 export default function DashboardPage() {
   const router = useRouter();
+
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<SubscriptionOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +62,7 @@ export default function DashboardPage() {
 
   async function fetchOrders() {
     try {
-      const response = await fetch("/api/subscription/orders");
+      const response = await fetch("/api/subscription-orders");
       if (response.ok) {
         const data = await response.json();
         setOrders(data);
@@ -161,9 +162,7 @@ export default function DashboardPage() {
                 <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
                   <span className="text-white font-bold text-xl">B</span>
                 </div>
-                <span className="text-xl font-bold text-slate-900 dark:text-white">
-                  BookWise
-                </span>
+                <span className="text-xl font-bold text-slate-900 dark:text-white">BookWise</span>
               </Link>
 
               <div className="hidden md:flex items-center space-x-6">
@@ -253,9 +252,8 @@ export default function DashboardPage() {
                 </h3>
                 <p className="text-amber-700 dark:text-amber-400 mt-1">
                   Your {pendingOrder.planType} subscription payment ($
-                  {pendingOrder.amount}) is being reviewed by our team. You'll
-                  receive an email once your subscription is activated (usually
-                  within 24 hours).
+                  {pendingOrder.amount}) is being reviewed by our team. You'll receive an email once
+                  your subscription is activated (usually within 24 hours).
                 </p>
               </div>
             </div>
@@ -275,21 +273,18 @@ export default function DashboardPage() {
               <div className="mb-6 pb-6 border-b border-white/20">
                 <p className="text-white/80 text-sm mb-1">Status</p>
                 <p className="text-xl font-semibold">
-                  {user.subscriptionStatus === "ACTIVE"
-                    ? "✓ Active"
-                    : user.subscriptionStatus}
+                  {user.subscriptionStatus === "ACTIVE" ? "✓ Active" : user.subscriptionStatus}
                 </p>
               </div>
 
-              {user.subscriptionEndDate &&
-                user.subscriptionTier !== "LIFETIME" && (
-                  <div className="mb-6 pb-6 border-b border-white/20">
-                    <p className="text-white/80 text-sm mb-1">Renews On</p>
-                    <p className="text-lg font-semibold">
-                      {new Date(user.subscriptionEndDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
+              {user.subscriptionEndDate && user.subscriptionTier !== "LIFETIME" && (
+                <div className="mb-6 pb-6 border-b border-white/20">
+                  <p className="text-white/80 text-sm mb-1">Renews On</p>
+                  <p className="text-lg font-semibold">
+                    {new Date(user.subscriptionEndDate).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
 
               {user.subscriptionTier === "FREE" && (
                 <Link
@@ -300,21 +295,18 @@ export default function DashboardPage() {
                 </Link>
               )}
 
-              {user.subscriptionTier !== "FREE" &&
-                user.subscriptionTier !== "LIFETIME" && (
-                  <Link
-                    href="/pricing"
-                    className="block w-full py-3 bg-white/20 text-white rounded-lg font-bold text-center hover:bg-white/30 transition-colors"
-                  >
-                    Change Plan
-                  </Link>
-                )}
+              {user.subscriptionTier !== "FREE" && user.subscriptionTier !== "LIFETIME" && (
+                <Link
+                  href="/pricing"
+                  className="block w-full py-3 bg-white/20 text-white rounded-lg font-bold text-center hover:bg-white/30 transition-colors"
+                >
+                  Change Plan
+                </Link>
+              )}
             </div>
 
             <div className="mt-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-                Your Stats
-              </h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Your Stats</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600 dark:text-slate-400">Total Listen Time</span>
@@ -384,8 +376,8 @@ export default function DashboardPage() {
                     Ready to Unlock Full Access?
                   </h3>
                   <p className="text-slate-700 dark:text-slate-300 mb-4">
-                    Upgrade to premium and get unlimited access to 10,000+ book
-                    summaries, full audio, and PDF downloads.
+                    Upgrade to premium and get unlimited access to 10,000+ book summaries, full
+                    audio, and PDF downloads.
                   </p>
                   <Link
                     href="/pricing"

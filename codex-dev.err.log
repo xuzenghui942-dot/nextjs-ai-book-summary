@@ -1,0 +1,201 @@
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+Request timed out after 3000ms
+
+Retrying 1/3...
+Request timed out after 3000ms
+
+Retrying 1/3...
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/get-session. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/sign-in/email. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/get-session. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/sign-in/email. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/get-session. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/sign-in/email. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/get-session. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
+[31m[auth][error][0m UnknownAction: Cannot parse action at /api/auth/sign-in/email. Read more at https://errors.authjs.dev#unknownaction
+    at parseActionAndProviderId (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:114:15)
+    at toInternalRequest (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/web.js:38:40)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:87:103)
+    at httpHandler (webpack-internal:///(rsc)/./node_modules/next-auth/index.js:142:82)
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:59:14)
+    at AppRouteRouteModule.do (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:37945)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47941
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:185:36
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:103
+    at NoopContextManager.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NextTracerImpl.trace (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\server\lib\trace\tracer.js:154:28)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:47780
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45275
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45232
+    at AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:63:14)
+    at AppRouteRouteModule.handle (C:\learning\webFront\myproject\BookWise\bookwise\node_modules\next\dist\compiled\next-server\app-route.runtime.dev.js:5:45186)
