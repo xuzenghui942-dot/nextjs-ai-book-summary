@@ -7,6 +7,7 @@ import { UserLayout } from "@/components/layout/UserLayout";
 import { BookCard } from "@/components/ui/BookCard";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Pagination } from "@/components/ui/Pagination";
 import { useBookFilters } from "@/hooks/useBookFilters";
 import { useBooks } from "@/hooks/useBooks";
 import { useCategories } from "@/hooks/useCategories";
@@ -133,39 +134,11 @@ function BooksContent() {
             ))}
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center space-x-2">
-              <button
-                onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setPage(i + 1)}
-                  className={`px-4 py-2 rounded-lg font-medium ${
-                    page === i + 1
-                      ? "bg-emerald-600 text-white"
-                      : "border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-
-              <button
-                onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </>
       )}
     </UserLayout>

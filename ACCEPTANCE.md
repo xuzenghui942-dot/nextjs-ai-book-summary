@@ -2227,16 +2227,203 @@ Compare BookWise plans and unlock unlimited book summaries, full audio access, a
 
 ### 实际执行记录
 
-（待 Step 8 完成后执行）
+#### 本次开发目标
+
+本次完成 Step 9：优化用户端 `/books` 分页体验。保持 Step 5 已建立的 URL 状态同步与 TanStack Query 缓存策略，不引入虚拟列表，不改变 `/api/books?page=&limit=&search=&category=` 接口。
+
+本次完成范围：
+
+1. 新增通用 `Pagination` 组件。
+2. `/books` 页面移除内联分页实现。
+3. 分页控件不再渲染所有页码。
+4. 保留 Previous/Next 禁用状态。
+5. 保留用户端分页，不使用虚拟列表。
+
+---
+
+#### 1. 新增 components/ui/Pagination.tsx
+
+新增文件：
+
+```ts
+components/ui/Pagination.tsx
+```
+
+组件 props：
+
+```ts
+type PaginationProps = {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+};
+```
+
+核心逻辑：
+
+- `totalPages <= 1` 时返回 `null`。
+- `totalPages <= 7` 时显示全部页码。
+- `totalPages > 7` 时固定显示：
+  - 第一页
+  - 当前页前后一页
+  - 最后一页
+  - 中间断层用 `...`
+  - `Previous`
+  - `Next`
+
+示例行为：
+
+- 当前页 1，总页数 20：
+  - `Previous 1 2 ... 20 Next`
+- 当前页 10，总页数 20：
+  - `Previous 1 ... 9 10 11 ... 20 Next`
+- 当前页 20，总页数 20：
+  - `Previous 1 ... 19 20 Next`
+
+可访问性处理：
+
+- 外层使用 `nav`。
+- 添加 `aria-label="Books pagination"`。
+- 当前页按钮添加 `aria-current="page"`。
+- 省略号使用 `aria-hidden="true"`。
+
+---
+
+#### 2. /books 页面接入
+
+修改文件：
+
+```ts
+app/(user)/books/page.tsx
+```
+
+删除旧逻辑：
+
+- 页面内联 `Previous` 按钮。
+- 页面内联 `[...Array(totalPages)].map(...)`。
+- 页面内联 `Next` 按钮。
+
+新增逻辑：
+
+```tsx
+<Pagination
+  currentPage={page}
+  totalPages={totalPages}
+  onPageChange={setPage}
+/>
+```
+
+保留行为：
+
+- `page` 仍由 `useBookFilters` 管理。
+- URL 仍由 `useBookFilters` 写入。
+- 搜索和分类切换仍自动回到第 1 页。
+- `useBooks(queryFilters)` 仍使用当前 page/search/category/limit。
+- 返回上一页仍可通过 TanStack Query queryKey 命中缓存。
+
+---
+
+#### 3. 与计划的偏差
+
+本次没有新增 `BookGridSkeleton`，继续使用已有 `LoadingSkeleton`。
+
+原因：
+
+- 当前 `LoadingSkeleton` 已经是图书网格骨架屏，行为符合 Step 9 的 loading 要求。
+- 新建同义组件会增加重复抽象。
+
+本次没有启动浏览器做 DOM 数量或视觉检查。
+
+原因：
+
+- Step 9 的核心优化是页码按钮数量，不是虚拟列表或大量 DOM 渲染。
+- 代码层已经移除 `[...Array(totalPages)]` 全量页码渲染。
+
+---
+
+#### 4. 验证结果
+
+##### npm run build
+
+结果：
+
+```bash
+✅ 通过
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+✓ Generating static pages using 21 workers (36/36)
+```
+
+结论：
+
+- 新增 `Pagination` 组件和 `/books` 页面接入通过生产构建。
+- 当前仍有 Next.js warning：`middleware` 文件约定已 deprecated，建议后续迁移到 `proxy`，不阻塞构建。
+
+##### npm run lint
+
+结果：
+
+```bash
+❌ 失败
+✖ 53 problems (19 errors, 34 warnings)
+```
+
+结论：
+
+- 新增 `Pagination` 组件没有出现在 lint 错误列表中。
+- 剩余 lint 失败仍是既有债务：
+  - admin 端 `any`
+  - admin/dashboard 内部路由使用 `<a>`
+  - admin/users、user/dashboard、pricing 的 `react-hooks/immutability`
+  - 多处 `<img>` 未替换为 `next/image`
+  - scripts 目录 `.cjs` 使用 `require`
+  - pricing 和首页未转义 `'`
+  - `ThemeProvider` 的 `set-state-in-effect`
+
+---
+
+#### 5. 遗留问题与下一步建议
+
+遗留问题：
+
+1. 未做浏览器手动验证，建议检查总页数很多时分页按钮是否符合预期。
+2. 当前分页窗口只显示当前页前后一页，如后续产品希望展示前后两页，可以调整 `getPaginationItems` 的窗口大小。
+3. 用户端分页仍依赖服务端 `totalPages`，如果 API 返回异常 totalPages，组件只做 UI 层处理，不修正数据源。
+
+下一步建议：
+
+1. 进入 Step 8，开始音频播放器增强与进度持久化。
+2. 或者先做一次浏览器手动验收，验证：
+   - `/books?search=react&category=1&page=2` 刷新恢复
+   - totalPages 很多时只显示少量页码
+   - Previous/Next 禁用状态
+   - 搜索/分类切换后 page 回到 1
 
 ### 验收标准
 
-- [ ] `/books?search=react&category=1&page=2` 刷新后状态正确恢复。
-- [ ] 页数很多时分页控件不会撑爆页面。
-- [ ] 搜索和分类切换后 page 自动回到 1。
-- [ ] Previous/Next 禁用状态正确。
-- [ ] 返回上一页优先命中 TanStack Query 缓存。
-- [ ] 用户端 books 页面不使用虚拟列表。
+- [x] `/books?search=react&category=1&page=2` 刷新后状态正确恢复（由 Step 5 `useBookFilters` 继续负责）。
+- [x] 页数很多时分页控件不会撑爆页面（不再渲染所有页码，使用省略号窗口）。
+- [x] 搜索和分类切换后 page 自动回到 1（由 `useBookFilters` setter 继续负责）。
+- [x] Previous/Next 禁用状态正确。
+- [x] 返回上一页优先命中 TanStack Query 缓存（queryKey 保持 `["books", params]`）。
+- [x] 用户端 books 页面不使用虚拟列表。
+
+### 阶段结论
+
+**Step 9 可判定为代码实现完成。**
+
+理由：
+
+- 分页控件已抽成可复用组件。
+- `/books` 不再全量渲染所有页码。
+- URL 语义和 TanStack Query 缓存策略保持不变。
+- production build 通过。
+- lint 仍失败，但不是 Step 9 引入。
 
 ---
 
