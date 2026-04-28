@@ -708,13 +708,242 @@ added 5 packages
 
 ### 实际执行记录
 
-（待 Step 3 完成后执行）
+#### 本次开发目标
+
+本次按用户要求直接推进 Step 4。虽然 Step 3 的 API N+1 查询层尚未完成，但 Step 4 依赖的是 Step 2 已经建立的 TanStack Query mutation 入口，因此可以先在前端缓存层实现收藏乐观更新，不阻塞后续 Step 3。
+
+本次目标：
+
+1. 点击收藏按钮后，books 列表、favorites 页面、book detail 页面立即反馈。
+2. mutation 失败时恢复 mutation 前的缓存快照。
+3. 收藏成功或失败的 toast 统一由 `useToggleFavorite` 管理，避免页面重复提示。
+4. 保持现有 API 行为不变，不提前修改 Step 3 的查询层。
+
+---
+
+#### 1. hooks/useFavorites.ts 改造
+
+本次把 Step 2 的普通 mutation 升级为完整乐观更新 mutation。
+
+新增类型：
+
+- `ToggleFavoriteInput`
+  - `bookId: number`
+  - `isFavorited: boolean`
+- `ToggleFavoriteContext`
+  - `previousFavorites`
+  - `previousBooks`
+  - `previousBook`
+
+新增缓存更新辅助函数：
+
+- `updateFavoriteCount`
+  - 收藏时 `_count.favorites + 1`
+  - 取消收藏时 `_count.favorites - 1`
+  - 使用 `Math.max(0, value)` 避免失败或脏数据导致负数
+- `withOptimisticFavorite`
+  - 只更新命中的 book
+  - 同步更新 `isFavorited`
+  - 同步更新 `_count.favorites`
+
+`onMutate` 实现：
+
+- 先取消相关 query，避免旧请求覆盖乐观状态：
+  - `["favorites"]`
+  - `["books"]`
+  - `["book", bookId]`
+- 保存 mutation 前快照：
+  - 当前 favorites 列表缓存
+  - 所有 books 前缀查询缓存
+  - 当前 book detail 缓存
+- 乐观更新：
+  - `["book", bookId]` 的 `isFavorited`
+  - 所有 `["books", params]` 列表缓存里对应 book 的 `isFavorited`
+  - 取消收藏时立即从 `["favorites"]` 缓存删除对应项
+- 新增收藏时没有伪造完整 `FavoriteItem`，按计划等 settled 后重新拉取 favorites，避免构造不完整 DTO。
+
+`onError` 实现：
+
+- 恢复 `previousFavorites`
+- 恢复每一个 books 列表 query snapshot
+- 恢复 book detail snapshot
+- 统一提示：`Failed to update favorites`
+
+`onSuccess` 实现：
+
+- 新增收藏提示：`Added to favorites`
+- 取消收藏提示：`Removed from favorites`
+
+`onSettled` 实现：
+
+- invalidate `["favorites"]`
+- invalidate `["books"]`
+- invalidate `["book", bookId]`
+
+---
+
+#### 2. 页面接入调整
+
+##### app/(user)/books/page.tsx
+
+保留：
+
+- 未登录时提示登录并跳转 `/login`
+- 继续调用 `useToggleFavorite().mutateAsync`
+
+删除：
+
+- 页面内收藏成功 toast
+- 页面内收藏失败 toast
+
+原因：
+
+- 成功/失败提示现在由 hook 统一处理。
+- 页面只负责业务前置判断，不再重复关心 mutation 结果表现。
+
+##### app/(user)/favorites/page.tsx
+
+保留：
+
+- 取消收藏前的 `confirm`
+- 继续通过统一 mutation 删除收藏
+
+删除：
+
+- 页面级 `react-hot-toast` 导入
+- 页面内成功/失败 toast
+
+行为变化：
+
+- confirm 通过后，favorite card 会先从当前 favorites 缓存里移除。
+- 如果请求失败，`onError` 会把 favorites 快照恢复回来。
+
+##### app/(user)/books/[id]/page.tsx
+
+保留：
+
+- 未登录提示登录并跳转 `/login`
+- 评论提交后的 `refetchBook()`，因为评论列表刷新不属于收藏乐观更新范围
+
+删除：
+
+- 收藏成功 toast
+- 收藏失败 toast
+- 收藏成功后的手动 `refetchBook()`
+
+原因：
+
+- 收藏状态由 hook 立刻写入 detail query。
+- settled 后 hook 会 invalidate detail query，不需要详情页再手动 refetch。
+
+---
+
+#### 3. 与计划的偏差
+
+本次存在一个明确偏差：
+
+- Step 3 仍未完成，但 Step 4 已先执行。
+
+影响评估：
+
+- 不影响 Step 4 前端乐观更新的正确性。
+- Step 3 后续优化 API 查询层时，需要保持 `/api/books`、`/api/user/favorites` 和 `/api/books/:id` 的 DTO 结构不变，否则 Step 4 的缓存写入类型要同步调整。
+- 当前 Step 4 没有修复 API N+1，也没有修改服务端接口，这是刻意保留到 Step 3 的范围。
+
+---
+
+#### 4. 验证结果
+
+##### npm run build
+
+结果：
+
+```bash
+❌ 失败
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+⨯ useSearchParams() should be wrapped in a suspense boundary at page "/login"
+Error occurred prerendering page "/login"
+```
+
+结论：
+
+- Step 4 修改没有引入 TypeScript 或编译阶段错误。
+- build 仍失败在既有 `/login` 页面 `useSearchParams()` 缺 Suspense 边界问题。
+- 该问题已在 Step 2 验收中记录，不是本次 Step 4 引入的问题。
+
+##### npm run lint
+
+结果：
+
+```bash
+❌ 失败
+✖ 55 problems (20 errors, 35 warnings)
+```
+
+失败点摘要：
+
+- admin 端历史 `any`
+- admin/dashboard 使用 `<a>` 跳内部路由
+- admin/users、user/dashboard、pricing 的 `react-hooks/immutability`
+- 多处 `<img>` 未替换为 `next/image`
+- scripts 目录 `.cjs` 的 `require`
+- 首页和 pricing 的未转义 `'`
+- `ThemeProvider` 既有 `set-state-in-effect`
+
+结论：
+
+- 本次 Step 4 修改文件没有出现在新增 lint 错误列表中。
+- lint 失败属于既有债务，主要对应 Step 6、Step 10、Step 11 的后续处理范围。
+
+##### 手动检查
+
+本次未启动浏览器做真实点击和断网模拟。
+
+已完成的静态检查：
+
+- 代码层确认 mutation 会同时更新 books、favorites、detail 三类缓存。
+- 代码层确认 `onError` 持有并恢复所有相关 snapshot。
+- 代码层确认页面不再重复弹收藏成功/失败 toast。
+
+---
+
+#### 5. 遗留问题与下一步建议
+
+遗留问题：
+
+1. Step 3 尚未完成，API 仍存在 N+1 查询。
+2. `/login` Suspense 边界问题仍阻塞 production build 完整通过。
+3. lint 仍有大量历史债务，未在 Step 4 范围内处理。
+4. 本次未做浏览器手动验收，网络失败回滚只完成代码实现层验证。
+
+下一步建议：
+
+1. 回到 Step 3，完成 API 查询层优化，避免后续性能问题继续累积。
+2. 尽早修复 `/login` 的 Suspense 边界，否则后续每一步 build 都会被同一历史问题阻断。
+3. 如果要严格验收 Step 4 的交互体验，应启动本地服务，在 books、favorites、detail 三处分别点击收藏，并用 DevTools 或临时 mock API 失败验证回滚。
 
 ### 验收标准
 
-- [ ] 点击心形后 UI 立即变化。
-- [ ] 网络失败时 UI 回滚。
-- [ ] books、favorites、detail 三处收藏状态一致。
+- [x] 点击心形后 UI 立即变化（通过 `onMutate` 直接写入 React Query 缓存实现）。
+- [x] 网络失败时 UI 回滚（通过 `onError` 恢复 favorites、books、book detail snapshots 实现；尚未做浏览器断网手动验证）。
+- [x] books、favorites、detail 三处收藏状态一致（统一由 `useToggleFavorite` 更新并在 settled 后 invalidate）。
+
+### 阶段结论
+
+**Step 4 可判定为代码实现完成，但仍建议补一次浏览器手动验收。**
+
+理由：
+
+- 计划要求的 optimistic update、snapshot rollback、统一 toast、settled invalidate 都已落地。
+- 本次变更没有引入新的 TypeScript/build 阻塞。
+- 当前 build/lint 失败均来自既有问题，不属于 Step 4 引入。
+- 真正的网络失败回滚体验仍需要后续在浏览器中用失败请求进行交互验证。
 
 ---
 

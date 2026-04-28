@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
 import { UserLayout } from "@/components/layout/UserLayout";
 import { BookCard } from "@/components/ui/BookCard";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
@@ -32,10 +31,8 @@ export default function FavoritesPage() {
     }
     try {
       await toggleFavorite.mutateAsync({ bookId, isFavorited: true });
-      toast.success("Removed from favorites");
     } catch (error) {
       console.error("Failed to remove favorites", error);
-      toast.error("Failed to remove favorites");
     }
   };
 

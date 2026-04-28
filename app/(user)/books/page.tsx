@@ -61,10 +61,8 @@ function BooksContent() {
 
     try {
       await toggleFavorite.mutateAsync({ bookId, isFavorited });
-      toast.success(isFavorited ? "Removed from favorites" : "Added to favorites");
     } catch (error) {
       console.error("Failed to toggle favorites:", error);
-      toast.error("Failed to update favorites");
     }
   };
 

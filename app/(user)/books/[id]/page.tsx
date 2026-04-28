@@ -50,11 +50,8 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
     if (!book) return;
     try {
       await toggleFavorite.mutateAsync({ bookId: book.id, isFavorited: book.isFavorited });
-      toast.success(book.isFavorited ? "Removed from favorites" : "Added to favorites");
-      refetchBook();
     } catch (error) {
       console.error("Failed to toggle favorites:", error);
-      toast.error("Failed to update favorites");
     }
   };
 
