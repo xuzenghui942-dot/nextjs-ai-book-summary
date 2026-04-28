@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import toast from "react-hot-toast";
 import { VirtualAdminList } from "@/components/admin/VirtualAdminList";
 
@@ -66,7 +67,7 @@ export default function ReviewsPage() {
       } else {
         toast.error("Failed to update review");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while updating the review");
     } finally {
       setUpdating(null);
@@ -88,7 +89,7 @@ export default function ReviewsPage() {
       } else {
         toast.error("Failed to deleting review");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while deleting the review");
     } finally {
       setUpdating(null);
@@ -119,18 +120,26 @@ export default function ReviewsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Reviews</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">Manage user book reviews and ratings</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+          Reviews
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-2">
+          Manage user book reviews and ratings
+        </p>
       </div>
 
       <div className="mb-6 grid grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Total Reviews</div>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{reviews.length}</div>
+          <div className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            {reviews.length}
+          </div>
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Average Rating</div>
-          <div className="text-3xl font-bold text-yellow-500 dark:text-yellow-400 tracking-tight">{averageRating} ★</div>
+          <div className="text-3xl font-bold text-yellow-500 dark:text-yellow-400 tracking-tight">
+            {averageRating} ★
+          </div>
         </div>
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">Approved</div>
@@ -197,114 +206,127 @@ export default function ReviewsPage() {
         emptyMessage="No reviews found."
         resetKey={filter}
         renderItem={(review) => (
-            <div
-              key={review.id}
-              className="mb-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start space-x-4">
-                {review.book.coverImageUrl && (
-                  <img
+          <div
+            key={review.id}
+            className="mb-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-start space-x-4">
+              {review.book.coverImageUrl && (
+                <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg">
+                  <Image
                     src={review.book.coverImageUrl}
                     alt={review.book.title}
-                    className="w-20 h-28 object-cover rounded-lg"
+                    fill
+                    className="object-cover"
+                    sizes="80px"
                   />
+                </div>
+              )}
+
+              <div className="flex-1">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <Link
+                      href={`/admin/books/${review.book.id}/details`}
+                      className="text-lg font-bold text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400"
+                    >
+                      {review.book.title}
+                    </Link>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {" "}
+                      {review.book.author}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    {[...Array(5)].map((_, i) => (
+                      <span
+                        key={i}
+                        className={`text-xl ${
+                          i < review.rating
+                            ? "text-yellow-400"
+                            : "text-slate-300 dark:text-slate-600"
+                        }`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {review.reviewTitle && (
+                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">
+                    {review.reviewTitle}
+                  </h3>
                 )}
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <Link
-                        href={`/admin/books/${review.book.id}/details`}
-                        className="text-lg font-bold text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-emerald-400"
-                      >
-                        {review.book.title}
-                      </Link>
-                      <p className="text-sm text-slate-500 dark:text-slate-400"> {review.book.author}</p>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      {[...Array(5)].map((_, i) => (
-                        <span
-                          key={i}
-                          className={`text-xl ${
-                            i < review.rating ? "text-yellow-400" : "text-slate-300 dark:text-slate-600"
-                          }`}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                {review.reviewText && (
+                  <p className="text-slate-700 dark:text-slate-300 mb-3 line-clamp-2">
+                    {review.reviewText}
+                  </p>
+                )}
 
-                  {review.reviewTitle && (
-                    <h3 className="font-semibold text-slate-900 dark:text-white mb-2">{review.reviewTitle}</h3>
+                <div className="flex items-center space-x-4 text-sm text-slate-500 dark:text-slate-400 mb-3">
+                  <Link
+                    href={`/admin/users/${review.user.id}`}
+                    className="hover:text-emerald-600 dark:hover:text-emerald-400 font-medium"
+                  >
+                    {review.user.fullName}
+                  </Link>
+                  <span>•</span>
+                  <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+
+                  {review.isVerifiedPurchase && (
+                    <>
+                      <span>•</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        ✓ Verified Purchase
+                      </span>
+                    </>
                   )}
 
-                  {review.reviewText && (
-                    <p className="text-slate-700 dark:text-slate-300 mb-3 line-clamp-2">
-                      {review.reviewText}
-                    </p>
-                  )}
+                  <span>•</span>
+                  <span>{review.helpfulCount} found helpful</span>
+                </div>
 
-                  <div className="flex items-center space-x-4 text-sm text-slate-500 dark:text-slate-400 mb-3">
-                    <Link
-                      href={`/admin/users/${review.user.id}`}
-                      className="hover:text-emerald-600 dark:hover:text-emerald-400 font-medium"
-                    >
-                      {review.user.fullName}
-                    </Link>
-                    <span>•</span>
-                    <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+                <div className="flex items-center space-x-2 mb-3">
+                  <span
+                    className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                      review.isApproved
+                        ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400"
+                        : "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400"
+                    }`}
+                  >
+                    {review.isApproved ? "Approved" : "Pending Approval"}
+                  </span>
+                </div>
 
-                    {review.isVerifiedPurchase && (
-                      <>
-                        <span>•</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">✓ Verified Purchase</span>
-                      </>
-                    )}
-
-                    <span>•</span>
-                    <span>{review.helpfulCount} found helpful</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 mb-3">
-                    <span
-                      className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
-                        review.isApproved
-                          ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400"
-                          : "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400"
-                      }`}
-                    >
-                      {review.isApproved ? "Approved" : "Pending Approval"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => handleToggleApproval(review.id, review.isApproved)}
-                      disabled={updating === review.id}
-                      className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                        review.isApproved
-                          ? "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400 disabled:opacity-50"
-                          : "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900"
-                      } disabled:opacity-50`}
-                    >
-                      {updating === review.id
-                        ? "Updating..."
-                        : review.isApproved
-                          ? "Unapprove"
-                          : "Approve"}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(review.id)}
-                      disabled={updating === review.id}
-                      className="px-4 py-2 bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 rounded-lg text-sm font-semibold hover:bg-rose-100 dark:hover:bg-rose-900 disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => handleToggleApproval(review.id, review.isApproved)}
+                    disabled={updating === review.id}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                      review.isApproved
+                        ? "bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400 disabled:opacity-50"
+                        : "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900"
+                    } disabled:opacity-50`}
+                  >
+                    {updating === review.id
+                      ? "Updating..."
+                      : review.isApproved
+                        ? "Unapprove"
+                        : "Approve"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(review.id)}
+                    disabled={updating === review.id}
+                    className="px-4 py-2 bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 rounded-lg text-sm font-semibold hover:bg-rose-100 dark:hover:bg-rose-900 disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>
+          </div>
         )}
       />
     </div>

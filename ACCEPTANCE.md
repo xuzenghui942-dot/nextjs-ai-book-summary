@@ -3385,14 +3385,352 @@ npm run build
 
 ### 实际执行记录
 
-（待 Step 10 完成后执行）
+#### 本次开发目标
+
+本次执行最后一步 Step 11，目标是补齐项目收尾阶段最关键的生产级基础设施，并做低风险性能修补。
+
+本次完成范围：
+
+1. 新增全局 loading 边界。
+2. 新增 route-level error 边界。
+3. 新增 root-level global error 边界。
+4. 配置 `next/image` 远程图片来源。
+5. 将 Step 10 新增后台虚拟列表中的封面图从 `<img>` 替换为 `next/image`。
+6. 跑 `format:check`、`lint`、`build`，记录真实结果。
+
+本次未大规模拆分用户端详情页和 books 页面，原因是最后一步应优先保证生产构建稳定；详情页大拆分风险较高，适合单独步骤处理。
+
+---
+
+#### 1. 新增全局 loading 边界
+
+新增文件：
+
+```ts
+app/loading.tsx
+```
+
+实现内容：
+
+- 全局路由 loading fallback。
+- 使用居中卡片 + emerald spinner。
+- 使用 skeleton 条作为加载占位。
+- 支持 dark mode。
+
+价值：
+
+- 避免路由切换或 server segment 加载时只显示空白页。
+- 补齐生产项目常见 loading 基础设施。
+
+---
+
+#### 2. 新增 route-level error 边界
+
+新增文件：
+
+```ts
+app/error.tsx
+```
+
+实现内容：
+
+- `"use client"`。
+- 接收 `error` 和 `reset`。
+- 显示友好错误信息。
+- 如果存在 `error.digest`，展示 Error ID。
+- 提供 `Try again` 按钮调用 `reset()`。
+
+价值：
+
+- 单个路由 segment 出错时，不直接白屏。
+- 用户可以主动重试。
+
+---
+
+#### 3. 新增 root-level global error 边界
+
+新增文件：
+
+```ts
+app/global-error.tsx
+```
+
+实现内容：
+
+- `"use client"`。
+- 包含 `<html>` 和 `<body>`，符合 Next.js global error 要求。
+- 展示根级 fallback。
+- 提供 `Try again` 按钮调用 `reset()`。
+
+价值：
+
+- 根布局或 app shell 崩溃时仍有兜底 UI。
+- 这是生产级 Next.js 项目应有的基础设施。
+
+---
+
+#### 4. next/image 远程图片配置
+
+修改文件：
+
+```ts
+next.config.ts
+```
+
+新增配置：
+
+```ts
+images: {
+  remotePatterns: [
+    {
+      protocol: "https",
+      hostname: "**",
+    },
+    {
+      protocol: "http",
+      hostname: "**",
+    },
+  ],
+}
+```
+
+原因：
+
+- 当前书籍封面 URL 来源不固定，可能来自外部图片地址。
+- 用户端 `BookCard` 和详情页已经使用 `next/image`。
+- 后台虚拟列表封面图本次也迁移到 `next/image`。
+- 如果不配置 remotePatterns，外部图片在运行时可能被 Next Image 拦截。
+
+注意：
+
+- 这是开发/作品集阶段的宽松配置。
+- 生产环境更推荐收敛到真实 CDN 或上传域名，避免允许任意远程图片。
+
+---
+
+#### 5. 后台虚拟列表图片优化
+
+修改文件：
+
+```ts
+app/(admin-dashboard)/admin/books/AdminBooksTable.tsx
+app/(admin-dashboard)/admin/reviews/page.tsx
+```
+
+变更内容：
+
+- 引入 `next/image`。
+- 将 Step 10 新增的后台虚拟列表封面 `<img>` 替换为 `<Image />`。
+- 使用固定尺寸外层容器：
+  - books 表格封面：`w-12 h-16`
+  - reviews 卡片封面：`w-20 h-28`
+- 使用 `fill` + `object-cover`。
+- 使用 `sizes="48px"` / `sizes="80px"`。
+
+价值：
+
+- 减少新代码继续引入 `@next/next/no-img-element` warning。
+- 固定图片容器尺寸，降低布局抖动风险。
+- 与 Step 10 的固定高度虚拟列表兼容。
+
+---
+
+#### 6. 格式化处理
+
+##### npm run format:check
+
+结果：
+
+```bash
+❌ 失败
+Code style issues found in 84 files.
+```
+
+结论：
+
+- 项目存在全局历史格式问题。
+- 失败范围远大于本次 Step 11 触及文件。
+- 没有直接运行全量 `npm run format`。
+
+原因：
+
+- 全量格式化会重写大量无关文件，扩大 diff，不利于 review。
+- 本次只格式化 Step 11 实际触及文件。
+
+已执行：
+
+```bash
+npx prettier --write \
+  app/loading.tsx \
+  app/error.tsx \
+  app/global-error.tsx \
+  next.config.ts \
+  app/(admin-dashboard)/admin/books/AdminBooksTable.tsx \
+  app/(admin-dashboard)/admin/reviews/page.tsx
+```
+
+结果：
+
+```bash
+✅ 本次触及文件已格式化
+```
+
+---
+
+#### 7. lint 结果
+
+执行：
+
+```bash
+npm run lint
+```
+
+结果：
+
+```bash
+❌ 失败
+✖ 48 problems (18 errors, 30 warnings)
+```
+
+结论：
+
+- lint 仍失败。
+- 问题数相比 Step 10 记录的 `52 problems` 下降到 `48 problems`。
+- 本次新增 error 边界、loading 边界和后台虚拟列表图片优化没有引入新的 lint error。
+
+剩余主要问题：
+
+- `app/(admin-dashboard)/admin/books/[id]/details/page.tsx` 中仍有 `any`。
+- `app/(admin-dashboard)/admin/users/[id]/page.tsx` 中仍有 `any` 和 React Compiler 函数声明顺序问题。
+- `app/(user)/dashboard/page.tsx` 和 `app/(user)/pricing/page.tsx` 仍有 React Compiler 函数声明顺序问题。
+- `app/(admin-dashboard)/admin/dashboard/page.tsx` 仍使用 `<a>` 跳内部路由。
+- 多个历史页面仍有 `<img>` warning。
+- `components/providers/ThemeProvider.tsx` 仍有 effect 内同步 setState warning/error。
+- `scripts/extract-pdf-text.cjs` 仍有 `require()` 风格 lint error。
+
+说明：
+
+- 这些问题大多早在 Step 0 基线中已记录。
+- 本次没有把所有历史 lint 债务伪装成完成。
+
+---
+
+#### 8. build 结果
+
+执行：
+
+```bash
+npm run build
+```
+
+结果：
+
+```bash
+✅ 通过
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+✓ Generating static pages using 21 workers (37/37)
+```
+
+仍存在 warning：
+
+```bash
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+```
+
+结论：
+
+- Step 11 新增的 loading/error/global-error 文件构建合法。
+- `next/image` remotePatterns 配置构建合法。
+- 后台虚拟列表图片迁移没有破坏生产构建。
+
+---
+
+#### 9. 与计划的偏差
+
+1. 没有做全量图片迁移。
+
+原因：
+
+- 当前仍有多个 admin 历史页面使用 `<img>`。
+- 全量替换需要逐页检查尺寸、远程来源和布局影响。
+- 本次只处理 Step 10 新增虚拟列表中的图片，避免继续引入新债务。
+
+2. 没有拆分 `app/(user)/books/[id]/page.tsx`。
+
+原因：
+
+- 详情页包含音频、收藏、评论、PDF、reading history 多个交互。
+- Step 8 刚完成全局播放器接入，此时大拆分风险高。
+- 应单独安排“详情页拆分”步骤，先写测试/手动验收清单再拆。
+
+3. 没有运行全量 `npm run format`。
+
+原因：
+
+- `format:check` 涉及 84 个文件。
+- 全量格式化会产生大量无关 diff，不适合作为最后一步混入。
+- 本次只格式化实际修改文件。
+
+4. 没有做完整浏览器手动核心流验证。
+
+原因：
+
+- 当前本轮主要是代码级收尾。
+- 需要用户本地启动 dev server 后完成手动验收。
+
+---
+
+#### 10. 遗留问题与下一步建议
+
+遗留问题：
+
+1. 全量 `format:check` 仍失败，需要单独做一次格式化 PR 或格式化提交。
+2. 全量 `lint` 仍失败，需要按剩余 48 个问题逐类清理。
+3. `middleware.ts` 需要按 Next.js 16 建议迁移到 `proxy`。
+4. `next.config.ts` 当前图片远程域名配置较宽，生产环境应收敛到真实图片域名。
+5. 用户端详情页仍是大型 Client Component，后续建议单独拆成：
+   - `BookHero`
+   - `AudioSummary`
+   - `TableOfContents`
+   - `ReviewSection`
+6. admin 历史页面仍有 `<img>`，后续应继续替换为 `next/image`。
+
+下一步建议：
+
+1. 单独做“lint debt cleanup”步骤，优先修 React Compiler error 和 `any`。
+2. 单独做“image migration”步骤，替换剩余 admin `<img>`。
+3. 启动 dev server，手动验证核心路径：
+   - 登录/退出
+   - books 搜索/分类/分页
+   - 收藏/favorites
+   - book detail
+   - 音频播放器
+   - admin books/users/reviews 虚拟列表
+
+### 阶段结论
+
+**Step 11 可判定为基础设施收尾完成，但全项目最终质量闭环尚未完成。**
+
+理由：
+
+- loading/error/global-error 边界已补齐。
+- 新增虚拟列表相关图片已迁移到 `next/image`。
+- `next.config.ts` 已支持远程图片。
+- production build 通过。
+- 但 `format:check` 和 `lint` 仍受历史债务阻塞，不能写成“最终质量全部通过”。
 
 ### 验收标准
 
-- [ ] production build 通过。
-- [ ] 核心用户流可用。
-- [ ] 页面有 loading、empty、error 状态。
-- [ ] 代码文件复杂度下降。
+- [x] production build 通过。
+- [ ] 核心用户流可用（未做浏览器手动完整验证）。
+- [x] 页面有 loading、empty、error 状态（已新增 app loading/error/global-error，业务页面已有 EmptyState）。
+- [ ] 代码文件复杂度下降（本次未做大文件拆分，避免最后一步引入行为风险）。
 
 ---
 

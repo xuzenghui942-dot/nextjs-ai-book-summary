@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { VirtualAdminTable } from "@/components/admin/VirtualAdminTable";
 
 export type AdminBookListItem = {
@@ -54,14 +55,24 @@ export function AdminBooksTable({ books }: AdminBooksTableProps) {
           <div className="px-6 py-3 min-w-0">
             <div className="flex items-center space-x-3">
               {book.coverImageUrl ? (
-                <img src={book.coverImageUrl} alt={book.title} className="w-12 h-16 object-cover rounded" />
+                <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded">
+                  <Image
+                    src={book.coverImageUrl}
+                    alt={book.title}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                </div>
               ) : (
                 <div className="w-12 h-16 bg-slate-200 dark:bg-slate-700 rounded flex items-center justify-center shrink-0">
                   <span className="text-2xl">📖</span>
                 </div>
               )}
               <div className="min-w-0">
-                <p className="font-semibold text-slate-900 dark:text-white truncate">{book.title}</p>
+                <p className="font-semibold text-slate-900 dark:text-white truncate">
+                  {book.title}
+                </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{book.author}</p>
               </div>
             </div>
@@ -90,7 +101,9 @@ export function AdminBooksTable({ books }: AdminBooksTableProps) {
             )}
           </div>
           <div className="px-6 py-4 flex items-center">
-            <span className="text-slate-700 dark:text-slate-300 font-medium">{book._count.reviews}</span>
+            <span className="text-slate-700 dark:text-slate-300 font-medium">
+              {book._count.reviews}
+            </span>
           </div>
           <div className="px-6 py-4 flex items-center text-sm text-slate-500 dark:text-slate-400">
             {new Date(book.createdAt).toLocaleDateString()}
