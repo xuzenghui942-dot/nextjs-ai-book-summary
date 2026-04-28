@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { VirtualAdminList } from "@/components/admin/VirtualAdminList";
 
 interface Review {
   id: number;
@@ -189,16 +190,16 @@ export default function ReviewsPage() {
         </button>
       </div>
 
-      <div className="space-y-4">
-        {filteredReviews.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
-            <p className="text-slate-500 dark:text-slate-500">No reviews found.</p>
-          </div>
-        ) : (
-          filteredReviews.map((review) => (
+      <VirtualAdminList
+        items={filteredReviews}
+        estimateItemHeight={232}
+        getItemKey={(review) => review.id}
+        emptyMessage="No reviews found."
+        resetKey={filter}
+        renderItem={(review) => (
             <div
               key={review.id}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-shadow"
+              className="mb-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex items-start space-x-4">
                 {review.book.coverImageUrl && (
@@ -238,7 +239,11 @@ export default function ReviewsPage() {
                     <h3 className="font-semibold text-slate-900 dark:text-white mb-2">{review.reviewTitle}</h3>
                   )}
 
-                  {review.reviewText && <p className="text-slate-700 dark:text-slate-300 mb-3">{review.reviewText}</p>}
+                  {review.reviewText && (
+                    <p className="text-slate-700 dark:text-slate-300 mb-3 line-clamp-2">
+                      {review.reviewText}
+                    </p>
+                  )}
 
                   <div className="flex items-center space-x-4 text-sm text-slate-500 dark:text-slate-400 mb-3">
                     <Link
@@ -300,9 +305,8 @@ export default function ReviewsPage() {
                 </div>
               </div>
             </div>
-          ))
         )}
-      </div>
+      />
     </div>
   );
 }

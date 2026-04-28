@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { VirtualAdminTable } from "@/components/admin/VirtualAdminTable";
 
 interface User {
   id: string;
@@ -24,69 +25,39 @@ export default function UsersPage() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (input, init) => {
-      const url =
-        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+    async function fetchUsers() {
+      const usersUrl = "/api/admin/users";
 
       try {
-        return await originalFetch(input, init);
-      } catch (error) {
-        console.error("[admin/users] fetch failed", {
-          url,
-          method,
-          error,
-        });
-        throw error;
-      }
-    };
-
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error("[admin/users] unhandled rejection", {
-        reason: event.reason,
-      });
-    };
-
-    window.addEventListener("unhandledrejection", handleUnhandledRejection);
-    fetchUsers();
-
-    return () => {
-      window.fetch = originalFetch;
-      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
-    };
-  }, []);
-
-  async function fetchUsers() {
-    const usersUrl = "/api/admin/users";
-
-    try {
-      const response = await fetch(usersUrl);
-      console.log("[admin/users] users request finished", {
-        url: usersUrl,
-        status: response.status,
-        ok: response.ok,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      } else {
-        console.error("[admin/users] users request returned non-OK", {
+        const response = await fetch(usersUrl);
+        console.log("[admin/users] users request finished", {
           url: usersUrl,
           status: response.status,
-          body: await response.text(),
+          ok: response.ok,
         });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+        } else {
+          console.error("[admin/users] users request returned non-OK", {
+            url: usersUrl,
+            status: response.status,
+            body: await response.text(),
+          });
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("[admin/users] failed to fetch users", {
+          url: usersUrl,
+          error,
+        });
+        setLoading(false);
       }
-      setLoading(false);
-    } catch (error) {
-      console.error("[admin/users] failed to fetch users", {
-        url: usersUrl,
-        error,
-      });
-      setLoading(false);
     }
-  }
+
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter((user) => {
     if (filter === "all") return true;
@@ -209,115 +180,92 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
-            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Subscription
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Activity
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Joined
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500 dark:text-slate-500">
-                    No users found.
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold">
-                          {user.fullName.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ml-3">
-                          <div className="font-semibold text-slate-900 dark:text-white">{user.fullName}</div>
-                          {user.emailVerified && (
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ Verified</span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-600 dark:text-slate-400">{user.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          user.role === "ADMIN"
-                            ? "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400"
-                        }`}
-                      >
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getTierBadgeColor(user.subscriptionTier)}`}
-                      >
-                        {user.subscriptionTier}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeColor(user.subscriptionStatus)}`}
-                      >
-                        {user.subscriptionStatus}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-xs text-slate-600 dark:text-slate-400">
-                        <div>{user._count?.favorites || 0} favorites</div>
-                        <div>{user._count?.reviews || 0} reviews</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-600 dark:text-slate-400">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Link
-                        href={`/admin/users/${user.id}`}
-                        className="text-slate-900 dark:text-slate-300 hover:underline font-semibold text-sm"
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <VirtualAdminTable
+        items={filteredUsers}
+        columns={[
+          { key: "user", label: "User" },
+          { key: "email", label: "Email" },
+          { key: "role", label: "Role" },
+          { key: "subscription", label: "Subscription" },
+          { key: "status", label: "Status" },
+          { key: "activity", label: "Activity" },
+          { key: "joined", label: "Joined" },
+          { key: "actions", label: "Actions" },
+        ]}
+        gridTemplateColumns="minmax(220px,1.4fr) minmax(240px,1.5fr) 120px 150px 140px 130px 120px 140px"
+        estimateRowHeight={72}
+        getItemKey={(user) => user.id}
+        emptyMessage="No users found."
+        resetKey={filter}
+        minWidth="1260px"
+        renderRow={(user) => (
+          <div
+            role="row"
+            className="grid h-[72px] border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
+            style={{
+              gridTemplateColumns:
+                "minmax(220px,1.4fr) minmax(240px,1.5fr) 120px 150px 140px 130px 120px 140px",
+            }}
+          >
+            <div className="px-6 py-3 flex items-center min-w-0">
+              <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold shrink-0">
+                {user.fullName.charAt(0).toUpperCase()}
+              </div>
+              <div className="ml-3 min-w-0">
+                <div className="font-semibold text-slate-900 dark:text-white truncate">{user.fullName}</div>
+                {user.emailVerified && (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">Verified</span>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 flex items-center min-w-0">
+              <div className="text-sm text-slate-600 dark:text-slate-400 truncate">{user.email}</div>
+            </div>
+            <div className="px-6 py-4 flex items-center">
+              <span
+                className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  user.role === "ADMIN"
+                    ? "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400"
+                }`}
+              >
+                {user.role}
+              </span>
+            </div>
+            <div className="px-6 py-4 flex items-center">
+              <span
+                className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getTierBadgeColor(user.subscriptionTier)}`}
+              >
+                {user.subscriptionTier}
+              </span>
+            </div>
+            <div className="px-6 py-4 flex items-center">
+              <span
+                className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeColor(user.subscriptionStatus)}`}
+              >
+                {user.subscriptionStatus}
+              </span>
+            </div>
+            <div className="px-6 py-3 flex items-center">
+              <div className="text-xs text-slate-600 dark:text-slate-400">
+                <div>{user._count?.favorites || 0} favorites</div>
+                <div>{user._count?.reviews || 0} reviews</div>
+              </div>
+            </div>
+            <div className="px-6 py-4 flex items-center text-sm text-slate-600 dark:text-slate-400">
+              {new Date(user.createdAt).toLocaleDateString()}
+            </div>
+            <div className="px-6 py-4 flex items-center">
+              <Link
+                href={`/admin/users/${user.id}`}
+                className="text-slate-900 dark:text-slate-300 hover:underline font-semibold text-sm"
+              >
+                View Details
+              </Link>
+            </div>
+          </div>
+        )}
+      />
     </div>
   );
 }

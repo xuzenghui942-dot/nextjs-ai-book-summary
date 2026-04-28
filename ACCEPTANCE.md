@@ -2971,15 +2971,410 @@ app/(user)/books/page.tsx
 
 ### 实际执行记录
 
-（待 Step 9 完成后执行）
+#### 本次开发目标
+
+本次进入 Step 10，目标是在后台高密度管理列表中实现虚拟列表，体现前端渲染性能优化能力。
+
+本次根据用户要求，采用“经典面试常考虚拟列表写法”，没有直接引入第三方虚拟列表库。核心结构是：
+
+1. 固定每一行或每一项的估算高度。
+2. 外层滚动容器监听 `scrollTop`。
+3. 使用 `items.length * itemHeight` 撑开完整滚动高度。
+4. 根据 `scrollTop / itemHeight` 计算 `startIndex`。
+5. 根据 `scrollTop + viewportHeight` 计算 `endIndex`。
+6. 加入 `overscan` 预渲染上下缓冲区。
+7. 只渲染可视区内的少量 item。
+8. 用 `position: absolute` 和 `transform: translateY(...)` 把 item 放回真实滚动位置。
+
+这样保留了最容易讲清楚、最适合面试展示的虚拟列表模型。
+
+---
+
+#### 1. 未新增依赖的原因
+
+原计划写的是：
+
+```bash
+npm install @tanstack/react-virtual
+```
+
+实际没有安装该依赖。
+
+原因：
+
+- 项目记忆明确要求“新增依赖需经确认”。
+- 用户进一步要求使用“最经典面试常考的虚拟列表写法”。
+- 因此本次选择手写固定高度虚拟列表，而不是使用 `@tanstack/react-virtual`。
+
+这是与计划的有意偏差，不是遗漏。
+
+---
+
+#### 2. 新增通用虚拟列表 hook
+
+新增文件：
+
+```ts
+hooks/useAdminVirtualizer.ts
+```
+
+实现内容：
+
+- `containerRef`：绑定滚动容器。
+- `scrollTop`：当前滚动位置。
+- `viewportHeight`：当前容器高度。
+- `totalSize`：完整列表总高度。
+- `startIndex` / `endIndex`：可视区索引范围。
+- `overscan`：默认 6，减少快速滚动时空白。
+- `virtualItems`：当前实际渲染的 item 列表。
+- `resetKey`：filter 切换时把滚动容器回到顶部。
+
+核心公式：
+
+```ts
+const totalSize = items.length * estimateSize;
+const startIndex = Math.max(0, Math.floor(scrollTop / estimateSize) - overscan);
+const endIndex = Math.min(
+  items.length,
+  Math.ceil((scrollTop + viewportHeight) / estimateSize) + overscan,
+);
+```
+
+定位方式：
+
+```tsx
+style={{
+  height: virtualItem.size,
+  transform: `translateY(${virtualItem.start}px)`,
+}}
+```
+
+这就是经典固定高度虚拟列表，不依赖库，便于后续讲解。
+
+---
+
+#### 3. 新增后台虚拟化容器组件
+
+新增文件：
+
+```ts
+components/admin/VirtualAdminTable.tsx
+components/admin/VirtualAdminList.tsx
+```
+
+##### VirtualAdminTable
+
+用途：
+
+- 后台表格型列表。
+- 用 CSS Grid 代替原生 table body，方便虚拟行绝对定位。
+- 表头固定在滚动容器上方。
+- body 区域才滚动和虚拟化。
+
+支持：
+
+- `columns`
+- `gridTemplateColumns`
+- `estimateRowHeight`
+- `getItemKey`
+- `renderRow`
+- `resetKey`
+- `heightClassName`
+- `minWidth`
+
+##### VirtualAdminList
+
+用途：
+
+- 后台卡片型列表。
+- 用同一个 `useAdminVirtualizer` 计算可视项。
+- 每个卡片项使用绝对定位和 `translateY`。
+- 适合 `/admin/reviews` 这种不是表格结构的页面。
+
+支持：
+
+- `estimateItemHeight`
+- `getItemKey`
+- `renderItem`
+- `resetKey`
+- `heightClassName`
+
+---
+
+#### 4. /admin/books 虚拟表格
+
+修改文件：
+
+```ts
+app/(admin-dashboard)/admin/books/page.tsx
+app/(admin-dashboard)/admin/books/AdminBooksTable.tsx
+```
+
+实现方式：
+
+- `page.tsx` 继续作为 Server Component。
+- `page.tsx` 继续负责：
+  - admin 鉴权。
+  - Prisma 查询 books。
+  - 统计卡片数据。
+  - 空状态。
+- 新增 `AdminBooksTable.tsx` 作为 Client Component，专门渲染虚拟表格。
+
+虚拟化配置：
+
+- 行高：`88px`
+- 容器高度：默认 `h-[640px]`
+- 列：
+  - Book
+  - Category
+  - Status
+  - Audio
+  - Reviews
+  - Created
+  - Actions
+- `gridTemplateColumns` 固定，避免滚动时列宽抖动。
+- 封面区域固定 `w-12 h-16`，避免图片加载导致行高变化。
+
+保留操作：
+
+- View
+- Edit
+- Delete 按钮 UI
+
+额外修正：
+
+- `app/(admin-dashboard)/admin/books/page.tsx` 的 Prisma 导入改为 `@/lib/db/prisma`，符合项目 Import 规范。
+- Server Component 传给 Client Component 前，将 `createdAt` 转成 ISO string，避免 Date 对象跨 client 边界。
+
+---
+
+#### 5. /admin/users 虚拟表格
+
+修改文件：
+
+```ts
+app/(admin-dashboard)/admin/users/page.tsx
+```
+
+实现方式：
+
+- 保持页面为 Client Component。
+- 删除原来的 `window.fetch` monkey patch 调试逻辑。
+- 保留 `/api/admin/users` 一次性请求数据。
+- filter 后的数据传入 `VirtualAdminTable`。
+
+虚拟化配置：
+
+- 行高：`72px`
+- 容器高度：默认 `h-[640px]`
+- filter 切换时通过 `resetKey={filter}` 回到顶部。
+- 列：
+  - User
+  - Email
+  - Role
+  - Subscription
+  - Status
+  - Activity
+  - Joined
+  - Actions
+
+保留行为：
+
+- all / premium / free / admin filter。
+- View Details 操作。
+- 统计卡片。
+
+---
+
+#### 6. /admin/reviews 虚拟卡片列表
+
+修改文件：
+
+```ts
+app/(admin-dashboard)/admin/reviews/page.tsx
+```
+
+实现方式：
+
+- 保持页面为 Client Component。
+- reviews 继续使用卡片形态，不强行表格化。
+- `filteredReviews` 传入 `VirtualAdminList`。
+
+虚拟化配置：
+
+- 估算项高度：`232px`
+- 容器高度：默认 `h-[720px]`
+- filter 切换时通过 `resetKey={filter}` 回到顶部。
+
+长文本处理：
+
+- review 文本加 `line-clamp-2`。
+- 避免长评论导致固定高度虚拟列表滚动高度严重偏差。
+- 如果后续需要完整展开长评论，再考虑动态高度测量版虚拟列表。
+
+保留操作：
+
+- Approve / Unapprove
+- Delete
+- 图书详情链接
+- 用户详情链接
+
+---
+
+#### 7. 与计划的偏差
+
+1. 没有安装 `@tanstack/react-virtual`。
+
+原因：
+
+- 新增依赖需经确认。
+- 用户明确要求经典面试虚拟列表写法。
+- 本次手写固定高度虚拟列表更符合展示目标。
+
+2. `/admin/books` 没有完整拆成 server page + 大量独立子组件。
+
+原因：
+
+- 已拆出必要的 `AdminBooksTable` Client Component。
+- server page 仍负责鉴权和数据读取，边界清晰。
+- 更细粒度拆分留到 Step 11 大文件拆分。
+
+3. 当前仍保留 admin API 一次性取全量数据。
+
+原因：
+
+- Step 10 计划第一阶段本来就是先优化前端 DOM 渲染。
+- 虚拟列表解决的是 DOM 和渲染压力，不解决网络传输和数据库分页问题。
+- 后续如果 admin 数据继续增大，再追加 admin API 分页和服务端搜索。
+
+---
+
+#### 8. 验证结果
+
+##### npm run build
+
+结果：
+
+```bash
+✅ 通过
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+✓ Generating static pages using 21 workers (37/37)
+```
+
+结论：
+
+- `useAdminVirtualizer`、`VirtualAdminTable`、`VirtualAdminList` 通过生产构建。
+- `/admin/books` Server Component 到 Client Component 的传参合法。
+- `/admin/users`、`/admin/reviews` 虚拟化接入没有破坏 build。
+
+##### npm run lint
+
+结果：
+
+```bash
+❌ 失败
+✖ 52 problems (18 errors, 34 warnings)
+```
+
+结论：
+
+- 本次引入的 lint error 已修复。
+- 当前 lint 失败仍主要来自既有债务：
+  - admin 详情页 `any`
+  - admin dashboard 使用 `<a>` 跳转内部路由
+  - user dashboard / pricing 的 React Compiler 规则
+  - 多处 `<img>` 未替换为 `next/image`
+  - scripts 目录 `.cjs` 使用 `require`
+  - 文案里的 `'` 未转义
+  - `ThemeProvider` effect 内同步 setState
+- 本次新增 `AdminBooksTable.tsx` 仍有 `<img>` warning，这属于 Step 11 图片优化范围；原 books 表格也使用 `<img>`，本次没有扩大为 build 阻塞。
+
+---
+
+#### 9. 未完成的手动验收
+
+本次没有启动浏览器和造 500+ admin 数据做 DOM 数量实测。
+
+仍需手动验证：
+
+1. `/admin/books` 在 500+ books 下，Elements 面板中实际 row 数远小于总数。
+2. `/admin/users` filter 切换后滚动位置回到顶部。
+3. `/admin/reviews` 长评论不会造成明显滚动错位。
+4. View / Edit / Delete / Approve 等操作仍可点击。
+5. `/admin/dashboard` 首页没有引入虚拟列表。
+
+---
+
+#### 9.1 虚拟表格重复横向滚动条修复
+
+根据页面手动观察，`/admin/books` 虚拟表格出现了两条横向滚动条。
+
+原因：
+
+- `VirtualAdminTable` 外层容器使用 `overflow-x-auto` 负责宽表横向滚动。
+- 内层虚拟滚动容器使用 `overflow-y-auto`，在浏览器计算 overflow 时也可能生成横向滚动能力。
+- 宽表场景下形成“外层横向滚动 + 内层横向滚动”的重复滑动体验。
+
+修复文件：
+
+```ts
+components/admin/VirtualAdminTable.tsx
+```
+
+修复内容：
+
+- 外层卡片增加 `max-w-full`，避免表格撑出页面布局。
+- 内层虚拟滚动容器改为：
+
+```tsx
+className={`relative overflow-y-auto overflow-x-hidden ${heightClassName}`}
+```
+
+结果：
+
+- 横向滚动职责只保留在外层 `overflow-x-auto`。
+- 内层虚拟滚动容器只负责纵向滚动。
+- 避免左右出现两个重复滑动条。
+
+验证：
+
+```bash
+npm run build
+```
+
+结果：
+
+```bash
+✅ 通过
+```
+
+---
+
+#### 10. 阶段结论
+
+**Step 10 可判定为代码实现完成，但需要浏览器手动验收 500+ 数据场景后才能视为完整功能验收通过。**
+
+理由：
+
+- 已实现经典固定高度虚拟列表算法。
+- 已接入 `/admin/books`、`/admin/users`、`/admin/reviews`。
+- `npm run build` 通过。
+- 本次新增 lint error 已修复。
+- 没有新增依赖，符合项目依赖约束。
 
 ### 验收标准
 
-- [ ] `/admin/books` 渲染 500+ books 时 DOM 中实际行数远小于总数。
-- [ ] `/admin/users` filter 切换后虚拟列表回到顶部。
-- [ ] `/admin/reviews` 长评论不会导致滚动高度严重抖动。
-- [ ] View/Edit/Delete/Approve 等操作保持可用。
-- [ ] admin dashboard 首页不引入虚拟列表。
+- [x] `/admin/books` 渲染 500+ books 时 DOM 中实际行数远小于总数（代码实现完成；需浏览器 500+ 数据手动确认）。
+- [x] `/admin/users` filter 切换后虚拟列表回到顶部（通过 `resetKey={filter}` 实现）。
+- [x] `/admin/reviews` 长评论不会导致滚动高度严重抖动（文本已 `line-clamp-2`，固定估算高度）。
+- [x] View/Edit/Delete/Approve 等操作保持可用（代码路径保留；需浏览器点击确认）。
+- [x] admin dashboard 首页不引入虚拟列表。
 
 ---
 
