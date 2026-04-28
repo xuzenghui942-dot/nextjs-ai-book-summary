@@ -1248,6 +1248,112 @@ Error occurred prerendering page "/login"
 
 ---
 
+## 专项修复：/login Suspense build 阻塞
+
+### 修复目标
+
+解除 Next.js production build 在 `/login` 页面预渲染阶段的阻塞。
+
+### 问题原因
+
+`app/(auth)/login/page.tsx` 是 Client Page，并且在 page 顶层直接调用了 `useSearchParams()`。
+
+Next.js 16 在静态预渲染页面时要求使用 `useSearchParams()` 的 Client Component 必须位于 Suspense 边界内，否则 build 会报：
+
+```bash
+useSearchParams() should be wrapped in a suspense boundary at page "/login"
+```
+
+### 实际修改
+
+修改文件：
+
+```ts
+app/(auth)/login/page.tsx
+```
+
+具体变更：
+
+- 从 React 引入 `Suspense`。
+- 将原登录页表单逻辑拆成 `LoginContent`。
+- `LoginContent` 内继续使用：
+  - `useRouter`
+  - `useSearchParams`
+  - `useState`
+  - `signIn`
+- 默认导出的 `LoginPage` 只负责渲染：
+
+```tsx
+<Suspense fallback={...}>
+  <LoginContent />
+</Suspense>
+```
+
+这样既保留 `registered=true` 的注册成功提示逻辑，也满足 Next.js 对 `useSearchParams()` 的 Suspense 边界要求。
+
+### 验证结果
+
+#### npm run build
+
+结果：
+
+```bash
+✅ 通过
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+✓ Generating static pages using 21 workers (36/36)
+```
+
+说明：
+
+- `/login` Suspense build 阻塞已解除。
+- 当前 build 仍有一个 warning：`middleware` 文件约定已 deprecated，Next.js 建议后续迁移到 `proxy`。
+- 该 warning 不阻塞构建，不属于本次修复范围。
+
+#### npm run lint
+
+结果：
+
+```bash
+❌ 失败
+✖ 53 problems (19 errors, 34 warnings)
+```
+
+失败原因：
+
+- admin 端 `any`
+- admin/dashboard 内部路由使用 `<a>`
+- admin/users、user/dashboard、pricing 的 `react-hooks/immutability`
+- 多处 `<img>` 未替换为 `next/image`
+- scripts 目录 `.cjs` 使用 `require`
+- pricing 和首页未转义 `'`
+- `ThemeProvider` 的 `set-state-in-effect`
+
+结论：
+
+- lint 失败属于既有债务。
+- `/login` 本次修改没有新增 lint 错误。
+
+### 验收标准
+
+- [x] `/login` 的 `useSearchParams()` 位于 Suspense 边界内。
+- [x] `registered=true` 注册成功提示逻辑保留。
+- [x] `npm run build` 完整通过。
+- [x] lint 结果已记录，剩余失败不属于本次修复引入。
+
+### 阶段结论
+
+**/login Suspense build 阻塞已修复。**
+
+后续 Step 的 `npm run build` 可以重新作为有效质量门禁使用；剩余 lint 债务仍需按 Step 6、Step 10、Step 11 分批处理。
+
+---
+
 ## Step 6：完善类型安全与 Zod 校验
 
 ### 计划目标
