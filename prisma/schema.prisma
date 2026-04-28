@@ -206,6 +206,7 @@ model UserReadingHistory {
   lastAccessed         DateTime @default(now()) @map("last_accessed")
   completionPercentage Int      @default(0) @map("completion_percentage")
   audioPosition        Int      @default(0) @map("audio_position") // seconds
+  chapterIndex         Int      @default(0) @map("chapter_index")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 

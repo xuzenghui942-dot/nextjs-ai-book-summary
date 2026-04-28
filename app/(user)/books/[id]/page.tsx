@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -8,17 +8,14 @@ import toast from "react-hot-toast";
 import { UserLayout } from "@/components/layout/UserLayout";
 import { StarRating } from "@/components/ui/StarRating";
 import { useBook } from "@/hooks/useBook";
+import { fetchReadingProgress } from "@/hooks/useAudioPersistence";
 import { useToggleFavorite } from "@/hooks/useFavorites";
 import { useUser } from "@/hooks/useUser";
+import { useAudioStore } from "@/lib/store/useAudioStore";
 
 export default function BookDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const audioRef = useRef<HTMLAudioElement>(null);
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewData, setReviewData] = useState({ rating: 5, comment: "" });
   const { user } = useUser();
@@ -29,6 +26,18 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
     refetch: refetchBook,
   } = useBook(resolvedParams?.id);
   const toggleFavorite = useToggleFavorite();
+  const {
+    bookId: audioBookId,
+    chapterIndex: currentChapterIndex,
+    currentTime,
+    duration,
+    isPlaying,
+    setTrack,
+    setChapterIndex,
+    setCurrentTime,
+    setIsPlaying,
+    setIsPremiumUser,
+  } = useAudioStore();
 
   useEffect(() => {
     params.then((p) => setResolvedParams(p));
@@ -40,6 +49,59 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
       router.push("/books");
     }
   }, [bookError, router]);
+
+  useEffect(() => {
+    if (!book) {
+      return;
+    }
+
+    const chaptersWithAudio = book.chapters
+      .filter((chapter) => chapter.audioUrl)
+      .map((chapter) => ({
+        id: chapter.id,
+        chapterNumber: chapter.chapterNumber,
+        chapterTitle: chapter.chapterTitle,
+        audioUrl: chapter.audioUrl as string,
+        audioDuration: chapter.audioDuration,
+      }));
+
+    if (chaptersWithAudio.length === 0) {
+      return;
+    }
+
+    const isPremiumUser = (user?.subscriptionTier ?? "FREE") !== "FREE";
+    setIsPremiumUser(isPremiumUser);
+
+    if (audioBookId === book.id) {
+      return;
+    }
+
+    void fetchReadingProgress(book.id)
+      .then((progress) => {
+        const chapterIndex = Math.min(
+          progress?.chapterIndex ?? 0,
+          Math.max(0, chaptersWithAudio.length - 1),
+        );
+
+        setTrack({
+          bookId: book.id,
+          title: book.title,
+          chapters: chaptersWithAudio,
+          chapterIndex,
+          currentTime: progress?.audioPosition ?? 0,
+          isPremiumUser,
+        });
+      })
+      .catch((error) => {
+        console.error("Failed to restore reading progress", error);
+        setTrack({
+          bookId: book.id,
+          title: book.title,
+          chapters: chaptersWithAudio,
+          isPremiumUser,
+        });
+      });
+  }, [audioBookId, book, setIsPremiumUser, setTrack, user?.subscriptionTier]);
 
   const handleToggleFavorite = async () => {
     if (!user) {
@@ -56,23 +118,11 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
   };
 
   const handlePlayPause = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
     setIsPlaying(!isPlaying);
   };
 
   const handleChapterChange = (index: number) => {
-    setCurrentChapterIndex(index);
-    setCurrentTime(0);
-    setIsPlaying(false);
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.load();
-    }
+    setChapterIndex(index);
   };
 
   const handleNextChapter = () => {
@@ -89,24 +139,9 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
-  };
-
-  const handleLoadMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
-    }
+    setCurrentTime(time);
   };
 
   const formatTime = (seconds: number) => {
@@ -322,15 +357,6 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
                       <span>{formatTime(duration)}</span>
                     </div>
                   </div>
-
-                  <audio
-                    ref={audioRef}
-                    src={currentChapter?.audioUrl || ""}
-                    onTimeUpdate={handleTimeUpdate}
-                    onLoadedMetadata={handleLoadMetadata}
-                    onEnded={handleNextChapter}
-                    key={currentChapterIndex}
-                  />
 
                   {!isPremiumUser && (
                     <div className="mt-4 p-3 bg-yellow-500 rounded-lg">

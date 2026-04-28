@@ -5,6 +5,7 @@ import SessionProvider from "@/components/providers/SessionProvider";
 import QueryProvider from "@/components/providers/QueryProvider";
 import ToastProvider from "@/components/ToastProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import GlobalAudioPlayer from "@/components/audio/GlobalAudioPlayer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +57,7 @@ export default function RootLayout({
             <QueryProvider>
               <ToastProvider />
               {children}
+              <GlobalAudioPlayer />
             </QueryProvider>
           </SessionProvider>
         </ThemeProvider>

@@ -1,0 +1,2 @@
+ALTER TABLE `user_reading_history`
+  ADD COLUMN `chapter_index` INTEGER NOT NULL DEFAULT 0;
