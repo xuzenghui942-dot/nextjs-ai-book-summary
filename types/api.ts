@@ -34,7 +34,7 @@ export type CategoryDTO = {
   id: number;
   name: string;
   slug: string;
-  icon: string;
+  icon: string | null;
 };
 
 export type BookListItem = {
@@ -78,8 +78,8 @@ export type BookDetailDTO = {
   id: number;
   title: string;
   author: string;
-  description: string;
-  coverImageUrl: string;
+  description: string | null;
+  coverImageUrl: string | null;
   originalPdfUrl: string | null;
   summary: {
     id: number;
@@ -93,6 +93,7 @@ export type BookDetailDTO = {
   reviews: BookReviewDTO[];
   averageRating: number;
   isFavorited: boolean;
+  userSubscriptionTier?: string;
   _count: {
     reviews: number;
     favorites: number;

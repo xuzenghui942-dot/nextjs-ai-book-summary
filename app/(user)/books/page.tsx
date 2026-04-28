@@ -1,83 +1,37 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { UserLayout } from "@/components/layout/UserLayout";
 import { BookCard } from "@/components/ui/BookCard";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { UserProfile, BookListItem, CategoryDTO } from "@/types/api";
+import { useBooks } from "@/hooks/useBooks";
+import { useCategories } from "@/hooks/useCategories";
+import { useToggleFavorite } from "@/hooks/useFavorites";
+import { useUser } from "@/hooks/useUser";
 
 function BooksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [books, setBooks] = useState<BookListItem[]>([]);
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
-  const [totalPages, setTotalPages] = useState(1);
-  const [user, setUser] = useState<UserProfile | null>(null);
 
-  useEffect(() => {
-    fetchUser();
-    fetchCategories();
-  }, []);
+  const { user } = useUser();
+  const { data: categories = [] } = useCategories();
+  const { data: booksData, isLoading: booksLoading } = useBooks({
+    search: searchQuery,
+    category: selectedCategory,
+    page: currentPage,
+    limit: 12,
+  });
+  const toggleFavorite = useToggleFavorite();
 
-  useEffect(() => {
-    fetchBooks();
-  }, [searchQuery, selectedCategory, currentPage]);
-
-  async function fetchUser() {
-    try {
-      const response = await fetch("/api/user/profile");
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user", error);
-    }
-  }
-
-  async function fetchCategories() {
-    try {
-      const response = await fetch("/api/user/categories");
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch Categories", error);
-    }
-  }
-
-  async function fetchBooks() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "12",
-      });
-      if (searchQuery) params.append("search", searchQuery);
-      if (selectedCategory) params.append("category", selectedCategory);
-
-      const response = await fetch(`/api/books?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setBooks(data.books);
-        setTotalPages(data.pagination.totalPages);
-      }
-    } catch (error) {
-      console.error("Failed to fetch books data", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const books = booksData?.books ?? [];
+  const totalPages = booksData?.pagination.totalPages ?? 1;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,37 +60,17 @@ function BooksContent() {
     }
 
     try {
-      if (isFavorited) {
-        await fetch(`/api/user/favorites/${bookId}`, { method: "DELETE" });
-      } else {
-        await fetch("/api/user/favorites", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookId }),
-        });
-      }
-      fetchBooks();
+      await toggleFavorite.mutateAsync({ bookId, isFavorited });
+      toast.success(isFavorited ? "Removed from favorites" : "Added to favorites");
     } catch (error) {
       console.error("Failed to toggle favorites:", error);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      const response = await fetch("/api/auth/signout", { method: "POST" });
-      if (response.ok) {
-        window.location.href = "/";
-      }
-    } catch (error) {
-      console.error("Sign out error", error);
+      toast.error("Failed to update favorites");
     }
   };
 
   return (
     <UserLayout
-      user={user}
       activePath="/books"
-      onSignOut={handleSignOut}
       contentClassName="max-w-7xl mx-auto px-4 py-12"
     >
       <div className="mb-8">
@@ -195,7 +129,7 @@ function BooksContent() {
         </div>
       </div>
 
-      {loading ? (
+      {booksLoading ? (
         <LoadingSkeleton count={8} />
       ) : books.length === 0 ? (
         <EmptyState

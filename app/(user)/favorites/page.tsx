@@ -1,123 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { UserLayout } from "@/components/layout/UserLayout";
 import { BookCard } from "@/components/ui/BookCard";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import type { UserProfile, BookListItem } from "@/types/api";
-
-interface Favorite {
-  id: number;
-  bookId: number;
-  createdAt: string;
-  book: {
-    id: number;
-    title: string;
-    author: string;
-    description: string;
-    coverImageUrl: string;
-    category: {
-      id: number;
-      name: string;
-      slug: string;
-      icon: string;
-    };
-    averageRating: number;
-    _count: {
-      reviews: number;
-      favorites: number;
-    };
-  };
-}
+import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
+import { useUser } from "@/hooks/useUser";
 
 export default function FavoritesPage() {
   const router = useRouter();
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user } = useUser();
+  const {
+    data: favorites = [],
+    isLoading: loading,
+    error: favoritesError,
+  } = useFavorites();
+  const toggleFavorite = useToggleFavorite();
 
   useEffect(() => {
-    fetchUser();
-    fetchFavorites();
-  }, []);
-
-  async function fetchUser() {
-    try {
-      const response = await fetch("/api/user/profile");
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user", error);
+    if (favoritesError?.message === "Unauthorized") {
+      router.push("/login");
     }
-  }
+  }, [favoritesError, router]);
 
-  async function fetchFavorites() {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/user/favorites");
-      if (response.ok) {
-        const data = await response.json();
-        setFavorites(data);
-      } else if (response.status === 401) {
-        router.push("/login");
-      }
-    } catch (error) {
-      console.error("Failed to fetch favorites", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const handleRemoveFavorite = async (bookId: number, _isFavorited: boolean) => {
+  const handleRemoveFavorite = async (bookId: number) => {
     if (!confirm("Remove this book from your favorites?")) {
       return;
     }
     try {
-      const response = await fetch(`/api/user/favorites/${bookId}`, { method: "DELETE" });
-      if (response.ok) {
-        setFavorites(favorites.filter((fav) => fav.bookId !== bookId));
-        toast.success("Removed from favorites");
-      } else {
-        toast.error("Failed to remove favorites");
-      }
+      await toggleFavorite.mutateAsync({ bookId, isFavorited: true });
+      toast.success("Removed from favorites");
     } catch (error) {
       console.error("Failed to remove favorites", error);
+      toast.error("Failed to remove favorites");
     }
   };
-
-  const handleSignOut = async () => {
-    try {
-      const response = await fetch("/api/auth/signout", { method: "POST" });
-      if (response.ok) {
-        window.location.href = "/";
-      }
-    } catch (error) {
-      console.error("Sign out error", error);
-    }
-  };
-
-  const toBookListItem = (favorite: Favorite): BookListItem => ({
-    id: favorite.book.id,
-    title: favorite.book.title,
-    author: favorite.book.author,
-    description: favorite.book.description,
-    coverImageUrl: favorite.book.coverImageUrl,
-    category: favorite.book.category,
-    averageRating: favorite.book.averageRating,
-    isFavorited: true,
-    _count: favorite.book._count,
-  });
 
   return (
     <UserLayout
-      user={user}
       activePath="/favorites"
-      onSignOut={handleSignOut}
       contentClassName="max-w-7xl mx-auto px-4 py-12"
     >
       <div className="mb-8">
@@ -141,7 +65,7 @@ export default function FavoritesPage() {
           {favorites.map((favorite) => (
             <BookCard
               key={favorite.id}
-              book={toBookListItem(favorite)}
+              book={{ ...favorite.book, isFavorited: true }}
               user={user}
               variant="favorite"
               onToggleFavorite={handleRemoveFavorite}

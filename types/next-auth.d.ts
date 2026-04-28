@@ -13,15 +13,15 @@ declare module "next-auth" {
   }
 
   interface User {
-    role: UserRole;
-    subscriptionTier: SubscriptionTier;
+    role?: UserRole;
+    subscriptionTier?: SubscriptionTier;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    role: UserRole;
-    subscriptionTier: SubscriptionTier;
+    role?: UserRole;
+    subscriptionTier?: SubscriptionTier;
   }
 }

@@ -32,7 +32,7 @@ export function BookCard({ book, user, variant = "grid", onToggleFavorite }: Boo
             </div>
           )}
 
-          {!isFavoriteVariant && (
+          {onToggleFavorite && (
             <button
               onClick={(e) => {
                 e.preventDefault();

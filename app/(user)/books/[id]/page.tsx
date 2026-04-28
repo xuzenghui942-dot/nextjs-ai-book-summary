@@ -7,114 +7,39 @@ import Image from "next/image";
 import toast from "react-hot-toast";
 import { UserLayout } from "@/components/layout/UserLayout";
 import { StarRating } from "@/components/ui/StarRating";
-import type { UserProfile } from "@/types/api";
-
-interface Book {
-  id: number;
-  title: string;
-  author: string;
-  description: string;
-  coverImageUrl: string;
-  originalPdfUrl: string | null;
-  summary: {
-    id: number;
-    mainSummary: string | null;
-    keyTakeaways: unknown;
-    fullSummary: string | null;
-    tableOfContents: unknown;
-  } | null;
-  chapters: Array<{
-    id: number;
-    chapterNumber: number;
-    chapterTitle: string;
-    chapterSummary: string;
-    audioUrl: string | null;
-    audioDuration: number;
-  }>;
-  category: {
-    id: number;
-    name: string;
-    slug: string;
-    icon: string;
-  };
-  reviews: Review[];
-  averageRating: number;
-  isFavorited: boolean;
-  userSubscriptionTier: string;
-  _count: {
-    reviews: number;
-    favorites: number;
-  };
-}
-
-interface Review {
-  id: number;
-  rating: number;
-  reviewText: string | null;
-  isVerifiedPurchase: boolean;
-  createdAt: string;
-  user: {
-    id: string;
-    fullName: string;
-    email: string;
-  };
-}
+import { useBook } from "@/hooks/useBook";
+import { useToggleFavorite } from "@/hooks/useFavorites";
+import { useUser } from "@/hooks/useUser";
 
 export default function BookDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
-  const [book, setBook] = useState<Book | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<UserProfile | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewData, setReviewData] = useState({ rating: 5, comment: "" });
+  const { user } = useUser();
+  const {
+    data: book,
+    isLoading: loading,
+    error: bookError,
+    refetch: refetchBook,
+  } = useBook(resolvedParams?.id);
+  const toggleFavorite = useToggleFavorite();
 
   useEffect(() => {
     params.then((p) => setResolvedParams(p));
   }, [params]);
 
   useEffect(() => {
-    if (resolvedParams) {
-      fetchUser();
-      fetchBook();
+    if (bookError?.message === "Book not found") {
+      toast.error("Book not found");
+      router.push("/books");
     }
-  }, [resolvedParams]);
-
-  async function fetchUser() {
-    try {
-      const response = await fetch("/api/user/profile");
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user", error);
-    }
-  }
-
-  async function fetchBook() {
-    if (!resolvedParams) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/books/${resolvedParams.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setBook(data);
-      } else if (response.status === 404) {
-        toast.error("Book not found");
-        router.push("/books");
-      }
-    } catch (error) {
-      console.error("Failed to fetch book", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [bookError, router]);
 
   const handleToggleFavorite = async () => {
     if (!user) {
@@ -124,18 +49,12 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
     }
     if (!book) return;
     try {
-      if (book.isFavorited) {
-        await fetch(`/api/user/favorites/${book.id}`, { method: "DELETE" });
-      } else {
-        await fetch("/api/user/favorites", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookId: book.id }),
-        });
-      }
-      fetchBook();
+      await toggleFavorite.mutateAsync({ bookId: book.id, isFavorited: book.isFavorited });
+      toast.success(book.isFavorited ? "Removed from favorites" : "Added to favorites");
+      refetchBook();
     } catch (error) {
       console.error("Failed to toggle favorites:", error);
+      toast.error("Failed to update favorites");
     }
   };
 
@@ -244,24 +163,13 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
         toast.success("Review submitted! It will appear after admin approval.");
         setShowReviewForm(false);
         setReviewData({ rating: 5, comment: "" });
-        fetchBook();
+        refetchBook();
       } else {
         const error = await response.json();
         toast.error(error.error || "Failed to submit review");
       }
     } catch (error) {
       console.error("Failed to submit review", error);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      const response = await fetch("/api/auth/signout", { method: "POST" });
-      if (response.ok) {
-        window.location.href = "/";
-      }
-    } catch (error) {
-      console.error("Sign out error", error);
     }
   };
 
@@ -276,10 +184,10 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
   const chapters = book.chapters || [];
   const chaptersWithAudio = chapters.filter((ch) => ch.audioUrl);
   const currentChapter = chaptersWithAudio[currentChapterIndex];
-  const isPremiumUser = user?.subscriptionTier !== "FREE";
+  const isPremiumUser = (user?.subscriptionTier ?? "FREE") !== "FREE";
 
   return (
-    <UserLayout user={user} activePath="/books" onSignOut={handleSignOut}>
+    <UserLayout activePath="/books">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1">
@@ -354,7 +262,9 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">About This Book</h2>
-              <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{book.description}</p>
+              <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                {book.description || "No description available."}
+              </p>
             </div>
 
             {chaptersWithAudio.length > 0 && currentChapter && (

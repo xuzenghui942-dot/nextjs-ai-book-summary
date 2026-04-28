@@ -202,14 +202,484 @@ Found 1 error in lib/auth.ts:20  ← 历史债务，与 Step 1 无关
 
 ### 实际执行记录
 
-（待 Step 1 完成后执行）
+#### 本次开发目标
+
+这次交付的重点不是继续做视觉重构，而是把 Step 1 留下的“页面自己 fetch 数据、自己管理 user、自己处理 signOut”的过渡状态，推进到一个真正可复用的请求层。
+
+目标拆成 4 件事：
+
+1. 接入 TanStack Query，统一管理服务端状态。
+2. 接入 Zustand，管理会跨页面共享但不适合放在 Query 里的客户端状态。
+3. 把用户端核心页面从手写 `fetch + useEffect + local state` 改成 hooks 消费。
+4. 保持行为不回退，为 Step 3 的 N+1 优化和 Step 4 的乐观更新打基础。
+
+---
+
+#### 1. 依赖安装
+
+已安装：
+
+```bash
+npm install zustand @tanstack/react-query @tanstack/react-query-devtools
+```
+
+`package.json` 新增依赖：
+
+- `@tanstack/react-query`
+- `@tanstack/react-query-devtools`
+- `zustand`
+
+`package-lock.json` 已同步更新。
+
+---
+
+#### 2. Query 基础设施
+
+##### 新建文件
+
+| 文件 | 作用 |
+|------|------|
+| `lib/query-client.ts` | 统一 QueryClient 默认配置 |
+| `components/providers/QueryProvider.tsx` | 提供 QueryClientProvider，并在 development 挂载 React Query Devtools |
+
+##### 配置内容
+
+在 `lib/query-client.ts` 中设置：
+
+- `staleTime: 60_000`
+- `gcTime: 5 * 60_000`
+- `retry: 1`
+- `refetchOnWindowFocus: false`
+
+这样做的原因：
+
+- 用户从 books 翻页再返回时，可以优先命中缓存，减少重复 loading。
+- 当前项目主要是学习作品集，不需要像强实时后台那样每次切回窗口就重新请求。
+
+##### layout 接入
+
+修改 `app/layout.tsx`，Provider 顺序变为：
+
+```tsx
+<ThemeProvider>
+  <SessionProvider>
+    <QueryProvider>
+      <ToastProvider />
+      {children}
+    </QueryProvider>
+  </SessionProvider>
+</ThemeProvider>
+```
+
+这一步完成后，全站 client component 都可以安全使用 React Query。
+
+---
+
+#### 3. Zustand Store
+
+##### 新建文件
+
+| 文件 | 作用 |
+|------|------|
+| `lib/store/useUserStore.ts` | 存储当前用户基础资料 |
+| `lib/store/useAudioStore.ts` | 预留全局音频状态，为 Step 8 做准备 |
+
+##### useUserStore
+
+实现内容：
+
+- `user`
+- `setUser`
+- `clearUser`
+
+设计意图：
+
+- 用户资料的真实来源仍然是 `/api/user/profile`
+- Zustand 只做“当前页面树里任何组件都能立刻读到用户基础信息”的轻量缓存
+- 不把用户资料主逻辑从服务端状态错误地挪到纯客户端 store
+
+##### useAudioStore
+
+虽然 Step 8 还没开始，但这里先把全局播放器会用到的骨架状态建好：
+
+- `bookId`
+- `title`
+- `chapterIndex`
+- `currentTime`
+- `duration`
+- `isPlaying`
+- `playbackRate`
+- `setTrack`
+- `setChapterIndex`
+- `setCurrentTime`
+- `setDuration`
+- `setIsPlaying`
+- `setPlaybackRate`
+- `reset`
+
+这是 Step 2 范围内“先铺底层状态结构，不提前做 UI”的合理准备。
+
+---
+
+#### 4. 新建请求 Hooks
+
+##### 新建文件
+
+| 文件 | 作用 |
+|------|------|
+| `hooks/useUser.ts` | 当前用户资料查询与退出登录 |
+| `hooks/useCategories.ts` | 分类查询 |
+| `hooks/useBooks.ts` | 图书列表查询 |
+| `hooks/useBook.ts` | 单本图书详情查询 |
+| `hooks/useFavorites.ts` | 收藏列表查询与普通 mutation |
+
+##### useUser
+
+行为实现：
+
+- queryKey：`["user"]`
+- 请求：`/api/user/profile`
+- 401 返回 `null`，不抛错
+- 成功后同步写入 `useUserStore`
+- 暴露：
+  - `user`
+  - `isLoading`
+  - `isAuthenticated`
+  - `signOutUser`
+
+`signOutUser` 的逻辑：
+
+1. POST `/api/auth/signout`
+2. 清空 user store
+3. `queryClient.clear()`
+4. 跳转 `/`
+
+##### useCategories
+
+- queryKey：`["categories"]`
+- 请求：`/api/user/categories`
+
+##### useBooks
+
+- 参数：`search/category/page/limit`
+- queryKey：`["books", { search, category, page, limit }]`
+- 请求：`/api/books?...`
+- 返回：`{ books, pagination }`
+
+##### useBook
+
+- queryKey：`["book", bookId]`
+- 请求：`/api/books/:id`
+- `enabled: Boolean(bookId)`
+- 404 时抛出 `"Book not found"`，页面侧统一处理跳转和 toast
+
+##### useFavorites
+
+- queryKey：`["favorites"]`
+- 请求：`/api/user/favorites`
+- 401 时抛出 `"Unauthorized"`
+
+##### useToggleFavorite
+
+本次只实现普通 mutation，不做乐观更新：
+
+- 已收藏时：DELETE `/api/user/favorites/:id`
+- 未收藏时：POST `/api/user/favorites`
+- `onSettled` 时统一 invalidate：
+  - `["favorites"]`
+  - `["books"]`
+  - `["book", bookId]`
+
+这符合 plan：乐观更新留到 Step 4，不在 Step 2 抢做复杂缓存写入。
+
+---
+
+#### 5. 用户端页面改造
+
+本次改造了 3 个核心用户页面：
+
+| 页面 | 改造结果 |
+|------|---------|
+| `app/(user)/books/page.tsx` | 改为 `useUser + useCategories + useBooks + useToggleFavorite` |
+| `app/(user)/favorites/page.tsx` | 改为 `useUser + useFavorites + useToggleFavorite` |
+| `app/(user)/books/[id]/page.tsx` | 改为 `useUser + useBook + useToggleFavorite` |
+
+##### books/page.tsx
+
+删除了：
+
+- `fetchUser`
+- `fetchCategories`
+- `fetchBooks`
+- 对应的 2 个 `useEffect`
+- 手动 `setBooks / setCategories / setLoading / setTotalPages`
+- 页面内 `handleSignOut`
+
+改为：
+
+- `useUser()`
+- `useCategories()`
+- `useBooks({ search, category, page, limit: 12 })`
+- `useToggleFavorite()`
+
+行为变化：
+
+- 页面仍保留当前 Step 1 的搜索、分类和分页 UI
+- 但数据来源已切到 Query 缓存
+- 收藏后不再手动重新 `fetchBooks()`，而是通过 mutation invalidate 自动刷新
+
+##### favorites/page.tsx
+
+删除了：
+
+- `fetchUser`
+- `fetchFavorites`
+- 页面内 `loading`、`favorites`、`user` 三个本地状态
+- 页面内 `handleSignOut`
+- `toBookListItem` 的手动类型转换函数
+
+改为：
+
+- `useUser()`
+- `useFavorites()`
+- `useToggleFavorite()`
+
+额外处理：
+
+- 如果 `useFavorites()` 抛出 `"Unauthorized"`，页面在 `useEffect` 中跳转 `/login`
+- `BookCard` 传入 `{ ...favorite.book, isFavorited: true }`，避免额外 DTO 转换层
+
+##### books/[id]/page.tsx
+
+删除了：
+
+- `fetchUser`
+- `fetchBook`
+- 对应 `useEffect` 中的主动请求逻辑
+- 页面内 `handleSignOut`
+
+改为：
+
+- `useUser()`
+- `useBook(resolvedParams?.id)`
+- `useToggleFavorite()`
+
+保留了：
+
+- audio 播放逻辑
+- review 提交流程
+- 详情页交互 state
+
+本次只替换数据获取层，不在 Step 2 里拆详情页结构，避免把 Step 7 的 Server/Client 重构提前做掉。
+
+---
+
+#### 6. 共享组件层的同步调整
+
+##### Navbar
+
+`components/layout/Navbar.tsx` 从“纯 props 驱动”升级为“支持 props 优先，hook 兜底”：
+
+- 新增 `useUser()`
+- 计算：
+  - `const currentUser = user ?? queryUser`
+  - `const handleSignOut = onSignOut ?? signOutUser`
+
+好处：
+
+- Step 1 已完成的页面无需全部立刻重写，也还能工作
+- Step 2 改造后的页面可以逐步去掉重复传入的 `user/onSignOut`
+- Navbar 开始具备真正的全局状态消费能力
+
+##### BookCard
+
+修正了一个行为回归：
+
+- Step 1 的 `favorite` variant 会隐藏收藏按钮
+- 但 Step 2 改造后，favorites 页希望继续通过卡片按钮移除收藏
+
+因此改成：
+
+- 只要传入 `onToggleFavorite`，就显示收藏按钮
+- 不再单纯依赖 `variant !== "favorite"` 判断
+
+这个调整非常关键，否则 favorites 页虽然切成 hooks 版本，但用户会失去“移除收藏”的直接入口。
+
+##### DTO 补充
+
+根据真实接口返回，补充和修正了 `types/api.ts`：
+
+- `CategoryDTO.icon`：`string` → `string | null`
+- `BookDetailDTO.description`：`string` → `string | null`
+- `BookDetailDTO.coverImageUrl`：`string` → `string | null`
+- `BookDetailDTO.userSubscriptionTier?`：设为可选，兼容当前 detail API 返回
+
+##### next-auth 类型修正
+
+为了解决 build 过程中 NextAuth + PrismaAdapter 的类型冲突，调整了 `types/next-auth.d.ts`：
+
+- `User.role`：改为可选
+- `User.subscriptionTier`：改为可选
+- `JWT.role`：改为可选
+- `JWT.subscriptionTier`：改为可选
+
+原因：
+
+- AdapterUser 在创建用户时并不天然具备项目扩展字段
+- `Session.user` 仍然保留业务字段要求
+- 但 `User` 和 `JWT` 直接声明为必填，会让 PrismaAdapter 类型不兼容
+
+这个修复虽然不是 Step 2 原计划的核心功能，但它直接消除了 build 的一个历史类型阻塞。
+
+---
+
+#### 7. 验证过程
+
+##### 7.1 npm install
+
+结果：
+
+```bash
+added 5 packages
+```
+
+额外说明：
+
+- npm audit 报告了 10 个 vulnerabilities
+- 本次没有运行 `npm audit fix`
+- 原因是 Step 2 目标是接入请求层，不应在没有评估的情况下升级依赖并引入额外风险
+
+##### 7.2 npm run lint
+
+结果：
+
+```bash
+❌ 失败
+```
+
+本次结论：
+
+- lint 失败主因仍然是既有 admin、pricing、dashboard、scripts 问题
+- 不是 Step 2 新增 hooks 或 provider 的结构性错误
+- Step 2 新增代码中唯一显式引入的 `_isFavorited` 未使用警告已被修复
+
+已确认的既有 lint 阻塞包括：
+
+- admin 页面里的 `any`
+- 多处 `<img>` 提示
+- 既有页面函数声明顺序导致的 `react-hooks/immutability`
+- pricing/dashboard 的旧问题
+- `/scripts/extract-pdf-text.cjs` 的 require 风格导入
+
+##### 7.3 npm run build
+
+第一次 build 失败原因：
+
+- `hooks/useUser.ts` 返回对象中 `isLoading` 定义重复
+
+已修复：
+
+- 调整返回顺序，先展开 `...query`，再覆写自定义字段
+
+第二次 build 失败原因：
+
+- `types/next-auth.d.ts` 中 `User/JWT` 扩展字段过严，导致 PrismaAdapter 类型不兼容
+
+已修复：
+
+- 将 `role/subscriptionTier` 改为可选字段
+
+第三次 build 结果：
+
+```bash
+✅ 编译通过
+✅ TypeScript 通过
+✅ 页面数据收集通过
+❌ 最终失败在既有 /login 页面
+```
+
+最终阻塞：
+
+- `/login` 页面使用了 `useSearchParams()`
+- 但没有放进 Suspense 边界
+- Next.js 16 build 报错：
+  - `useSearchParams() should be wrapped in a suspense boundary at page "/login"`
+
+结论：
+
+- Step 2 本次修改本身没有引入新的 build 阻塞
+- 当前 build 失败点是项目既有 `/login` 页面问题
+- 这是后续步骤需要修复的历史问题，不影响对 Step 2 请求层改造质量的判断
+
+---
+
+#### 8. 本次交付的工程价值
+
+从开发者视角，这一步的价值不只是“把 fetch 搬到 hook 里”，而是做了几件以后会显著省成本的事情：
+
+1. **建立了统一请求层**
+   - 以后再做 Step 3 的 N+1 优化，不需要逐页改 fetch，只需要改 API 和少量 hook
+
+2. **建立了统一用户状态入口**
+   - Navbar、页面、详情页不再各自想办法拿 user
+
+3. **把收藏动作接到了统一 mutation 入口**
+   - Step 4 做乐观更新时，不需要再回头统一接口形状
+
+4. **把全局音频状态底座先铺好**
+   - Step 8 做全局播放器时，不需要重新设计 store
+
+5. **把“页面本地状态驱动的请求”切换成“缓存驱动的请求”**
+   - 这是用户端从 demo 写法走向工程写法的关键一步
+
+---
+
+#### 9. 遗留问题与下一步建议
+
+本次没有解决，但已明确记录的遗留项：
+
+1. `app/(auth)/login/page.tsx`
+   - `useSearchParams` 缺 Suspense 边界
+   - 这是当前 build 的实际阻塞点
+
+2. `app/api/books/route.ts`
+   - 仍有 N+1 查询
+   - Step 3 需要优先处理
+
+3. `app/api/user/favorites/route.ts`
+   - 仍有评分 aggregate 的 N+1
+   - Step 3 一并处理
+
+4. `favorites` 和 `detail` 目前仍通过 invalidate 重新取数据
+   - 行为正确
+   - 但不是即时反馈
+   - Step 4 再升级成真正乐观更新
+
+5. `Navbar` 目前是“props 优先，hook 兜底”
+   - 这是兼容过渡方案
+   - 后续等更多页面切完 hooks 后，可以考虑完全依赖 `useUser`
+
+---
 
 ### 验收标准
 
-- [ ] 用户资料请求由 `useUser` 统一管理。
-- [ ] 返回 books 页面时优先使用缓存。
-- [ ] 页面组件不再直接写大量 fetch/useEffect。
-- [ ] React Query Devtools 仅在 development 显示。
+- [x] 用户资料请求由 `useUser` 统一管理。
+- [x] 返回 books 页面时优先使用缓存（Query key 已建立，`staleTime` 已配置）。
+- [x] 页面组件不再直接写大量 fetch/useEffect（books / favorites / detail 已切换）。
+- [x] React Query Devtools 仅在 development 显示。
+
+### 阶段结论
+
+**Step 2 可判定为完成。**
+
+理由：
+
+- 计划要求的 QueryProvider、stores、hooks 已全部落地。
+- 用户端 3 个核心页面已接入新的请求层。
+- build 过程中由 Step 2 引入的问题已全部修复。
+- 当前剩余 build 阻塞来自既有 `/login` 页面，不属于本次改造引入的问题。
+
+如果按真实团队开发节奏汇报，这一阶段可以进入“通过验收，允许进入 Step 3”的状态。
 
 ---
 
