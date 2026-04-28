@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -103,5 +103,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     });
   } catch (error) {
     console.error("Error Fetch book", error);
+    return NextResponse.json({ error: "Failed to fetch book" }, { status: 500 });
   }
 }

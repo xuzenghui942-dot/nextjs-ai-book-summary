@@ -1,12 +1,13 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
+import { getUserFavoritesWithMeta } from "@/lib/db/queries";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const favoriteSchema = z.object({
   bookId: z.number().positive(),
 });
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
 
@@ -14,63 +15,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const favorites = await prisma.userFavorite.findMany({
-      where: {
-        userId: session.user.id,
-      },
-      include: {
-        book: {
-          include: {
-            category: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                icon: true,
-              },
-            },
-            _count: {
-              select: {
-                reviews: true,
-                favorites: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const favorites = await getUserFavoritesWithMeta(session.user.id);
 
-    // Calculate average rating for each book
-    const favoritesWithRatings = await Promise.all(
-      favorites.map(async (favorite) => {
-        const avgRating = await prisma.bookReview.aggregate({
-          where: {
-            bookId: favorite.book.id,
-            isApproved: true,
-          },
-          _avg: {
-            rating: true,
-          },
-        });
-
-        return {
-          id: favorite.id,
-          bookId: favorite.bookId,
-          createdAt: favorite.createdAt,
-          book: {
-            ...favorite.book,
-            averageRating: avgRating._avg.rating || 0,
-          },
-        };
-      })
-    );
-
-    return NextResponse.json(favoritesWithRatings);
+    return NextResponse.json(favorites);
   } catch (error) {
-    console.error("Error Fetching favories", error);
+    console.error("Error fetching favorites", error);
+    return NextResponse.json({ error: "Failed to fetch favorites" }, { status: 500 });
   }
 }
 // Post(增加数据) 在 喜欢 列表里面 MAIN
@@ -136,5 +86,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(favorite, { status: 201 });
   } catch (error) {
     console.error("Error adding favorite", error);
+    return NextResponse.json({ error: "Failed to add favorite" }, { status: 500 });
   }
 }

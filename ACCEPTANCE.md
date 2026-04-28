@@ -690,14 +690,297 @@ added 5 packages
 
 ### 实际执行记录
 
-（待 Step 2 完成后执行）
+#### 本次开发目标
+
+本次回到 Step 3，目标是把用户端列表 API 中按每本书追加查询的 N+1 模式，改成固定次数查询，并补齐用户端相关 API 的异常 JSON 返回。
+
+本次完成范围：
+
+1. 新建数据库查询层 `lib/db/queries.ts`。
+2. 优化 `/api/books` 图书列表接口。
+3. 优化 `/api/user/favorites` 收藏列表接口。
+4. 补齐 book detail、favorite delete、review create 的 catch 500 JSON。
+5. 清理 MySQL 下无效的 Prisma `mode: "insensitive"`。
+
+---
+
+#### 1. 新建 lib/db/queries.ts
+
+新增文件：
+
+```ts
+lib/db/queries.ts
+```
+
+该文件统一从 `@/lib/db/prisma` 导入 Prisma client，符合项目记忆里的 Prisma 导入规范。
+
+新增函数：
+
+- `getPublishedBooksWithMeta`
+- `getUserFavoritesWithMeta`
+
+新增内部辅助函数：
+
+- `buildAverageRatingMap`
+
+设计原则：
+
+- route 只负责 session、query 参数读取和返回 JSON。
+- 查询细节集中在 `lib/db/queries.ts`。
+- 列表评分使用 `bookReview.groupBy` 一次查回。
+- 收藏状态使用 `userFavorite.findMany` 一次查回后转成 `Set<number>`。
+- 合并数据时保持现有前端 DTO 兼容，不改变 `useBooks` 和 `useFavorites` 的消费方式。
+
+---
+
+#### 2. /api/books 查询优化
+
+修改文件：
+
+```ts
+app/api/books/route.ts
+```
+
+变更前的问题：
+
+- route 内部直接构造 `where: any`。
+- 搜索条件使用 MySQL 不支持的 `mode: "insensitive"`。
+- 对每本 book 额外执行：
+  - 一次 `bookReview.aggregate`
+  - 登录用户再执行一次 `userFavorite.findFirst`
+- 列表页 12 本书时，除主查询外会额外产生最多 24 次查询。
+
+变更后：
+
+- route 调用 `getPublishedBooksWithMeta`。
+- `where` 类型改为 `Prisma.BookWhereInput`。
+- 删除 `mode: "insensitive"`。
+- 主查询固定为：
+  - `book.findMany`
+  - `book.count`
+- 当前页 bookIds 取出后再并行查询：
+  - `bookReview.groupBy`
+  - 登录用户的 `userFavorite.findMany`
+- 用 `Map<number, number>` 合并平均分。
+- 用 `Set<number>` 合并收藏状态。
+
+返回结构保持不变：
+
+```ts
+{
+  books,
+  pagination: {
+    page,
+    limit,
+    totalCount,
+    totalPages,
+  },
+}
+```
+
+对前端影响：
+
+- `hooks/useBooks.ts` 不需要修改。
+- books 页面继续消费同样的 `{ books, pagination }`。
+- Step 4 的乐观更新缓存结构不受影响。
+
+---
+
+#### 3. /api/user/favorites 查询优化
+
+修改文件：
+
+```ts
+app/api/user/favorites/route.ts
+```
+
+变更前的问题：
+
+- GET 查询 favorites 后，对每个 favorite 再执行一次 `bookReview.aggregate`。
+- catch 中只 `console.error`，没有返回 500 JSON，异常时客户端可能拿到空响应。
+- GET 函数声明里有未使用的 `request` 参数。
+
+变更后：
+
+- GET 调用 `getUserFavoritesWithMeta(session.user.id)`。
+- 先一次查出 favorites + book + category + count。
+- 再用一次 `bookReview.groupBy` 查所有收藏图书评分。
+- 合并时给 `favorite.book` 补上：
+  - `averageRating`
+  - `isFavorited: true`
+- GET catch 返回：
+
+```ts
+{ error: "Failed to fetch favorites" }
+```
+
+状态码为 `500`。
+
+POST 保持当前业务逻辑和 Zod schema，不提前迁移到 validations 文件；这部分按计划留到 Step 6。
+
+POST catch 也补齐：
+
+```ts
+{ error: "Failed to add favorite" }
+```
+
+状态码为 `500`。
+
+---
+
+#### 4. 其他用户端 API catch 补齐
+
+修改文件：
+
+```ts
+app/api/books/[id]/route.ts
+app/api/user/favorites/[id]/route.ts
+app/api/user/review/route.ts
+```
+
+具体变更：
+
+- `app/api/books/[id]/route.ts`
+  - Prisma 导入改为 `@/lib/db/prisma`
+  - catch 返回 `500` JSON：`Failed to fetch book`
+
+- `app/api/user/favorites/[id]/route.ts`
+  - Prisma 导入改为 `@/lib/db/prisma`
+  - `parseInt(id)` 后增加 `Number.isNaN(bookId)` 判断
+  - 非法 id 返回 `400` JSON：`Invalid favorite id`
+  - catch 返回 `500` JSON：`Failed to remove favorite`
+
+- `app/api/user/review/route.ts`
+  - Prisma 导入改为 `@/lib/db/prisma`
+  - catch 返回 `500` JSON：`Failed to create review`
+
+这些修改保证了用户端核心 API 在异常分支不会静默结束。
+
+---
+
+#### 5. 静态检查
+
+使用 PowerShell 静态搜索确认以下反模式已从 `app/api` 和 `lib/db` 中清除：
+
+```bash
+mode: "insensitive"
+books.map(async
+favorites.map(async
+```
+
+搜索结果为空。
+
+说明：
+
+- `rg` 在当前 Codex Windows App 环境里启动失败，报 `拒绝访问`。
+- 已改用 `Get-ChildItem | Select-String -SimpleMatch` 完成同等检查。
+
+---
+
+#### 6. 验证结果
+
+##### npm run build
+
+结果：
+
+```bash
+❌ 失败
+```
+
+关键输出摘要：
+
+```bash
+✓ Compiled successfully
+✓ Running TypeScript
+⨯ useSearchParams() should be wrapped in a suspense boundary at page "/login"
+Error occurred prerendering page "/login"
+```
+
+结论：
+
+- Step 3 新增的 Prisma 查询层和 API route 修改通过了编译和 TypeScript 检查。
+- build 失败仍是既有 `/login` Suspense 边界问题。
+- 该失败不是 Step 3 引入的问题。
+
+##### npm run lint
+
+结果：
+
+```bash
+❌ 失败
+✖ 53 problems (19 errors, 34 warnings)
+```
+
+与 Step 4 后的 55 个问题相比，本次降到 53 个问题。
+
+已减少的 Step 3 相关问题：
+
+- `app/api/books/route.ts` 的 `any` 已移除。
+- `app/api/user/favorites/route.ts` 的未使用 `request` 已移除。
+
+仍存在的 lint 阻塞主要是既有问题：
+
+- admin 端 `any`
+- admin/dashboard 内部路由使用 `<a>`
+- admin/users、user/dashboard、pricing 的 `react-hooks/immutability`
+- 多处 `<img>` 未替换为 `next/image`
+- scripts 目录 `.cjs` 使用 `require`
+- pricing 和首页未转义 `'`
+- `ThemeProvider` 的 `set-state-in-effect`
+
+---
+
+#### 7. 与计划的偏差
+
+本次没有把 POST favorite 的 Zod schema 移到 `lib/validations/favorite.ts`。
+
+原因：
+
+- plan 明确写了 POST schema 迁移属于 Step 6。
+- Step 3 只保留业务逻辑并补齐 catch 500，避免扩大范围。
+
+本次也没有重构 `/api/books/[id]` 的平均分和收藏查询。
+
+原因：
+
+- 详情页是单本书查询，不属于列表 N+1。
+- 当前详情页额外两次查询是固定次数，不会随列表数量增长。
+- 本次只按 Step 3 计划补齐 catch 500 和 Prisma 导入入口。
+
+---
+
+#### 8. 遗留问题与下一步建议
+
+遗留问题：
+
+1. `/login` 缺 Suspense 边界仍阻塞完整 production build。
+2. `/api/books` 的 query 参数非法值校验仍比较弱，例如 `page=abc`、`category=abc`，这属于 Step 6 Zod 校验范围。
+3. 还没有做真实数据库下的查询日志对比截图；当前验收基于代码结构和静态搜索确认。
+
+下一步建议：
+
+1. 优先修复 `/login` Suspense 边界，让后续 Step 的 build 验证不再被同一历史问题阻断。
+2. Step 5 可以继续做搜索防抖和 URL 状态同步。
+3. Step 6 再补 API query/body Zod 校验，处理非法 page/category/favorite/review 输入。
 
 ### 验收标准
 
-- [ ] books 列表接口不再按每本书查询评分和收藏。
-- [ ] favorites 列表接口不再按每本书查询评分。
-- [ ] 所有用户端 API catch 都返回 JSON。
-- [ ] MySQL 查询不再使用无效的 `mode: "insensitive"`。
+- [x] books 列表接口不再按每本书查询评分和收藏。
+- [x] favorites 列表接口不再按每本书查询评分。
+- [x] 所有用户端 API catch 都返回 JSON（Step 3 范围内的 books、favorites、favorite delete、review 已补齐）。
+- [x] MySQL 查询不再使用无效的 `mode: "insensitive"`。
+
+### 阶段结论
+
+**Step 3 可判定为代码实现完成。**
+
+理由：
+
+- 列表 N+1 查询已从 route 中移除。
+- 查询层已抽到 `lib/db/queries.ts`。
+- API 返回结构保持兼容，Step 2 hooks 和 Step 4 乐观更新不需要调整。
+- build 的编译与 TypeScript 阶段通过，剩余 build 阻塞是既有 `/login` 问题。
+- lint 问题数量从 55 降到 53，剩余失败集中在既有历史债务。
 
 ---
 
