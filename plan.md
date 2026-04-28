@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # BookWise 优化计划细化版
 
 > 目标：把 BookWise 从“功能可用”的学习项目，升级成更接近生产级的作品集项目。执行顺序按“先稳定基础、再重构复用、再性能优化、最后亮点功能”推进。
@@ -62,13 +61,15 @@ fetch("/api/subscription-orders");
 8. 修改 `app/api/user/categories/route.ts`，select 增加 `icon: true`。
 9. 新建 `types/api.ts`，先放 Step 1 会用到的基础 DTO 类型，不放 Zod schema。
 10. 基础 DTO 至少包含：
-   - `UserProfile`
-   - `CategoryDTO`
-   - `BookListItem`
-   - `BookDetailDTO`
-   - `BookChapterDTO`
-   - `BookReviewDTO`
-   - `FavoriteItem`
+
+- `UserProfile`
+- `CategoryDTO`
+- `BookListItem`
+- `BookDetailDTO`
+- `BookChapterDTO`
+- `BookReviewDTO`
+- `FavoriteItem`
+
 11. 确认 `tsconfig.json` 已开启 `strict: true`，后续类型修复以 strict 模式为准。
 12. 记录基线命令结果时要注明：如果当前 `lint/build` 因历史 `any`、client/server 边界或现有 bug 失败，这只是基线，不阻塞 Step 1 开始执行。
 
@@ -89,14 +90,14 @@ fetch("/api/subscription-orders");
 
 ### 新建文件
 
-| 文件 | 说明 |
-|---|---|
-| `components/layout/Navbar.tsx` | 统一用户端导航栏 |
-| `components/layout/UserLayout.tsx` | 用户端统一页面外壳 |
-| `components/ui/StarRating.tsx` | 统一星级评分组件 |
-| `components/ui/BookCard.tsx` | 统一图书卡片 |
-| `components/ui/LoadingSkeleton.tsx` | 骨架屏组件 |
-| `components/ui/EmptyState.tsx` | 空状态组件 |
+| 文件                                | 说明               |
+| ----------------------------------- | ------------------ |
+| `components/layout/Navbar.tsx`      | 统一用户端导航栏   |
+| `components/layout/UserLayout.tsx`  | 用户端统一页面外壳 |
+| `components/ui/StarRating.tsx`      | 统一星级评分组件   |
+| `components/ui/BookCard.tsx`        | 统一图书卡片       |
+| `components/ui/LoadingSkeleton.tsx` | 骨架屏组件         |
+| `components/ui/EmptyState.tsx`      | 空状态组件         |
 
 ### Navbar 具体要求
 
@@ -226,17 +227,17 @@ npm install zustand @tanstack/react-query @tanstack/react-query-devtools
 
 ### 新建文件
 
-| 文件 | 说明 |
-|---|---|
-| `lib/query-client.ts` | QueryClient 默认配置 |
+| 文件                                     | 说明                 |
+| ---------------------------------------- | -------------------- |
+| `lib/query-client.ts`                    | QueryClient 默认配置 |
 | `components/providers/QueryProvider.tsx` | React Query Provider |
-| `lib/store/useUserStore.ts` | 用户基础信息 store |
-| `lib/store/useAudioStore.ts` | 全局音频状态 store |
-| `hooks/useUser.ts` | 用户资料查询 |
-| `hooks/useCategories.ts` | 分类查询 |
-| `hooks/useBooks.ts` | 图书列表查询 |
-| `hooks/useBook.ts` | 单本图书查询 |
-| `hooks/useFavorites.ts` | 收藏查询和 mutation |
+| `lib/store/useUserStore.ts`              | 用户基础信息 store   |
+| `lib/store/useAudioStore.ts`             | 全局音频状态 store   |
+| `hooks/useUser.ts`                       | 用户资料查询         |
+| `hooks/useCategories.ts`                 | 分类查询             |
+| `hooks/useBooks.ts`                      | 图书列表查询         |
+| `hooks/useBook.ts`                       | 单本图书查询         |
+| `hooks/useFavorites.ts`                  | 收藏查询和 mutation  |
 
 ### QueryClient 配置
 
@@ -280,10 +281,7 @@ export const queryClientConfig = {
 
 ```ts
 {
-  user,
-  isLoading,
-  isAuthenticated,
-  signOutUser
+  (user, isLoading, isAuthenticated, signOutUser);
 }
 ```
 
@@ -310,7 +308,7 @@ type UseBooksParams = {
 2. queryKey：
 
 ```ts
-["books", { search, category, page, limit }]
+["books", { search, category, page, limit }];
 ```
 
 3. 请求 `/api/books?page=...&limit=...&search=...&category=...`。
@@ -382,7 +380,9 @@ type GetPublishedBooksWithMetaInput = {
 1. 构造 `Prisma.BookWhereInput`，固定包含：
 
 ```ts
-{ isPublished: true }
+{
+  isPublished: true;
+}
 ```
 
 2. 如果有 search，添加 OR：
@@ -392,7 +392,7 @@ OR: [
   { title: { contains: search } },
   { author: { contains: search } },
   { description: { contains: search } },
-]
+];
 ```
 
 3. MySQL 下不要使用当前代码里的 `mode: "insensitive"`。
@@ -514,8 +514,10 @@ DELETE /api/user/favorites/:bookId
 3. `isFavorited === false` 时：
 
 ```ts
-POST /api/user/favorites
-body: { bookId }
+POST / api / user / favorites;
+body: {
+  bookId;
+}
 ```
 
 4. `onMutate` 先取消相关 query：
@@ -531,15 +533,20 @@ body: { bookId }
 8. 如果是取消收藏，乐观删除 favorites 缓存中的对应项。
 9. 如果是新增收藏，不强行构造完整 FavoriteItem，等 settled 后重新拉取 favorites。
 10. `onError`：
-   - 恢复 snapshots。
-   - `toast.error("Failed to update favorites")`。
+
+- 恢复 snapshots。
+- `toast.error("Failed to update favorites")`。
+
 11. `onSuccess`：
-   - 新增时提示 `Added to favorites`。
-   - 删除时提示 `Removed from favorites`。
+
+- 新增时提示 `Added to favorites`。
+- 删除时提示 `Removed from favorites`。
+
 12. `onSettled`：
-   - invalidate `["favorites"]`
-   - invalidate `["books"]`
-   - invalidate `["book", bookId]`
+
+- invalidate `["favorites"]`
+- invalidate `["books"]`
+- invalidate `["book", bookId]`
 
 ### 降低风险的实现顺序
 
@@ -571,9 +578,9 @@ body: { bookId }
 
 ### 新建文件
 
-| 文件 | 说明 |
-|---|---|
-| `hooks/useDebounce.ts` | 通用防抖 hook |
+| 文件                      | 说明                |
+| ------------------------- | ------------------- |
+| `hooks/useDebounce.ts`    | 通用防抖 hook       |
 | `hooks/useBookFilters.ts` | 图书筛选和 URL 同步 |
 
 ### useDebounce
@@ -581,7 +588,7 @@ body: { bookId }
 函数签名：
 
 ```ts
-function useDebounce<T>(value: T, delay = 300): T
+function useDebounce<T>(value: T, delay = 300): T;
 ```
 
 实现要求：
@@ -596,14 +603,14 @@ function useDebounce<T>(value: T, delay = 300): T
 
 ```ts
 {
-  searchInput,
-  setSearchInput,
-  debouncedSearch,
-  category,
-  setCategory,
-  page,
-  setPage,
-  queryFilters
+  (searchInput,
+    setSearchInput,
+    debouncedSearch,
+    category,
+    setCategory,
+    page,
+    setPage,
+    queryFilters);
 }
 ```
 
@@ -657,13 +664,13 @@ function useDebounce<T>(value: T, delay = 300): T
 
 ### 新建或完善文件
 
-| 文件 | 说明 |
-|---|---|
-| `types/api.ts` | Step 0 已创建，本步骤补齐字段并修正响应类型 |
-| `lib/validations/book.ts` | books query schema |
-| `lib/validations/favorite.ts` | favorite body schema |
-| `lib/validations/review.ts` | review body schema |
-| `lib/validations/user.ts` | user profile schema 或类型辅助 |
+| 文件                          | 说明                                        |
+| ----------------------------- | ------------------------------------------- |
+| `types/api.ts`                | Step 0 已创建，本步骤补齐字段并修正响应类型 |
+| `lib/validations/book.ts`     | books query schema                          |
+| `lib/validations/favorite.ts` | favorite body schema                        |
+| `lib/validations/review.ts`   | review body schema                          |
+| `lib/validations/user.ts`     | user profile schema 或类型辅助              |
 
 ### types/api.ts
 
@@ -849,11 +856,11 @@ npx prisma migrate dev --name add-reading-history-chapter-index
 
 ### 新建 API
 
-| API | 方法 | 说明 |
-|---|---|---|
-| `/api/user/reading-history` | GET | 获取当前用户最近阅读记录 |
-| `/api/user/reading-history/[bookId]` | GET | 获取单本书进度 |
-| `/api/user/reading-history/[bookId]` | PATCH | 保存单本书进度 |
+| API                                  | 方法  | 说明                     |
+| ------------------------------------ | ----- | ------------------------ |
+| `/api/user/reading-history`          | GET   | 获取当前用户最近阅读记录 |
+| `/api/user/reading-history/[bookId]` | GET   | 获取单本书进度           |
+| `/api/user/reading-history/[bookId]` | PATCH | 保存单本书进度           |
 
 PATCH body：
 
@@ -874,11 +881,11 @@ PATCH body：
 
 ### 新建文件
 
-| 文件 | 说明 |
-|---|---|
-| `components/audio/GlobalAudioPlayer.tsx` | 全局底部播放器 |
-| `hooks/useAudioPlayer.ts` | audio 操作逻辑 |
-| `hooks/useAudioPersistence.ts` | 读取和保存播放进度 |
+| 文件                                     | 说明               |
+| ---------------------------------------- | ------------------ |
+| `components/audio/GlobalAudioPlayer.tsx` | 全局底部播放器     |
+| `hooks/useAudioPlayer.ts`                | audio 操作逻辑     |
+| `hooks/useAudioPersistence.ts`           | 读取和保存播放进度 |
 
 ### GlobalAudioPlayer
 
@@ -1012,11 +1019,11 @@ npm install @tanstack/react-virtual
 
 ### 新建文件
 
-| 文件 | 说明 |
-|---|---|
-| `components/admin/VirtualAdminTable.tsx` | 后台虚拟表格容器 |
-| `components/admin/VirtualAdminList.tsx` | 后台虚拟卡片列表容器 |
-| `hooks/useAdminVirtualizer.ts` | 封装 `@tanstack/react-virtual` 通用配置 |
+| 文件                                     | 说明                                    |
+| ---------------------------------------- | --------------------------------------- |
+| `components/admin/VirtualAdminTable.tsx` | 后台虚拟表格容器                        |
+| `components/admin/VirtualAdminList.tsx`  | 后台虚拟卡片列表容器                    |
+| `hooks/useAdminVirtualizer.ts`           | 封装 `@tanstack/react-virtual` 通用配置 |
 
 ### /admin/books 虚拟表格
 
@@ -1121,11 +1128,11 @@ const nextConfig: NextConfig = {
 
 新建：
 
-| 文件 | 说明 |
-|---|---|
-| `app/loading.tsx` | 全局 loading |
-| `app/error.tsx` | 路由级错误页 |
-| `app/global-error.tsx` | 根级错误页 |
+| 文件                   | 说明         |
+| ---------------------- | ------------ |
+| `app/loading.tsx`      | 全局 loading |
+| `app/error.tsx`        | 路由级错误页 |
+| `app/global-error.tsx` | 根级错误页   |
 
 `app/error.tsx` 要求：
 
@@ -1194,12 +1201,12 @@ const nextConfig: NextConfig = {
 
 ### 新建文件
 
-| 文件 | 说明 |
-|---|---|
-| `public/manifest.json` | PWA manifest |
-| `public/sw.js` | Service Worker，仅在选择手写方案时创建 |
-| `components/providers/ServiceWorkerProvider.tsx` | 注册 SW |
-| `components/OfflineNotice.tsx` | 离线提示 |
+| 文件                                             | 说明                                   |
+| ------------------------------------------------ | -------------------------------------- |
+| `public/manifest.json`                           | PWA manifest                           |
+| `public/sw.js`                                   | Service Worker，仅在选择手写方案时创建 |
+| `components/providers/ServiceWorkerProvider.tsx` | 注册 SW                                |
+| `components/OfflineNotice.tsx`                   | 离线提示                               |
 
 ### 缓存策略
 
@@ -1364,19 +1371,19 @@ type UpdateReadingHistoryBody = {
 
 ## 推荐执行节奏
 
-| 阶段 | 内容 | 预计耗时 |
-|---|---|---|
-| Day 1 | Step 0 + 基础 `types/api.ts` + Step 1 | 类型前置、组件化和基础清理 |
-| Day 2 | Step 2 | TanStack Query、Zustand 和 hooks |
-| Day 3 | Step 3 + Step 5 | API 性能和用户端搜索/URL |
-| Day 4 | Step 4 | 乐观更新单独调试 |
-| Day 5 | Step 6 | 类型安全和 Zod |
-| Day 6 | Step 7 + Step 9 | SEO 和用户端分页体验优化 |
-| Day 7 | Step 11 前半 | 错误边界、图片优化和大文件拆分 |
-| Day 8 | Step 8 | 音频播放器和进度持久化 |
-| Day 9 | Step 10 | Admin 管理列表虚拟化 |
-| Day 10 | Step 11 后半 | 最终检查、lint/build 和手动验证 |
-| Optional | PWA 离线能力 | 核心质量稳定后再做 |
+| 阶段     | 内容                                  | 预计耗时                         |
+| -------- | ------------------------------------- | -------------------------------- |
+| Day 1    | Step 0 + 基础 `types/api.ts` + Step 1 | 类型前置、组件化和基础清理       |
+| Day 2    | Step 2                                | TanStack Query、Zustand 和 hooks |
+| Day 3    | Step 3 + Step 5                       | API 性能和用户端搜索/URL         |
+| Day 4    | Step 4                                | 乐观更新单独调试                 |
+| Day 5    | Step 6                                | 类型安全和 Zod                   |
+| Day 6    | Step 7 + Step 9                       | SEO 和用户端分页体验优化         |
+| Day 7    | Step 11 前半                          | 错误边界、图片优化和大文件拆分   |
+| Day 8    | Step 8                                | 音频播放器和进度持久化           |
+| Day 9    | Step 10                               | Admin 管理列表虚拟化             |
+| Day 10   | Step 11 后半                          | 最终检查、lint/build 和手动验证  |
+| Optional | PWA 离线能力                          | 核心质量稳定后再做               |
 
 ---
 
@@ -1396,372 +1403,3 @@ type UpdateReadingHistoryBody = {
 Step 8 和 Step 10 属于亮点功能；Optional PWA 只有在核心质量稳定后再做。用户端 books 保留分页优化，虚拟列表放在 admin 管理列表里体现。
 
 如果时间只有 7 天，建议把 Step 8 音频播放器和 Step 10 Admin 虚拟化作为加分项延后，先保证 Step 0-7、Step 9、Step 11 的核心质量闭环。
-=======
-# BookWise 浏览器性能优化计划
-
-## 核心问题总结
-
-| 严重度 | 问题 | 影响范围 |
-|-------|------|---------|
-| **P0** | N+1 查询：每本书2次额外查询，12本书=25次DB查询 | `/api/books`, `/api/user/favorites` |
-| **P0** | 管理后台无分页：全量渲染所有书籍/用户/评论/订单 | admin/books, users, reviews, subscriptions |
-| **P1** | 无数据缓存：每个页面独立 fetchUser，导航即重新请求 | 所有 client 页面 |
-| **P1** | 无 loading/error UI：缺少 loading.tsx 和 error.tsx | 所有路由 |
-| **P2** | 无 memoization：整个项目零 useMemo/useCallback/React.memo | 所有组件 |
-| **P2** | 分类切换无防抖：selectedCategory 变化立即触发 fetch | `/books` |
-| **P2** | 分页渲染所有页码：[...Array(totalPages)].map() | `/books` |
-| **P3** | 无懒加载：重型组件未做 dynamic import | `/books/[id]` |
-| **P3** | next.config.ts 为空：无图片优化、无 headers 配置 | 全局 |
-
----
-
-## Phase 1：N+1 查询修复 + 服务端分页
-
-### 1.1 `/api/books` 接口重构
-
-**当前问题**：每页12本书触发 1+12×2=25 次 DB 查询
-
-**优化方案**：批量查询取代循环查询
-
-```
-修改前：
-  books.map(async (book) => {
-    avgRating = await prisma.bookReview.aggregate(...)   // N次
-    favorite = await prisma.userFavorite.findFirst(...)   // N次
-  })
-
-修改后：
-  3次并行查询：
-  1. prisma.book.findMany({ where, skip, take, include })  // 主查询
-  2. prisma.bookReview.groupBy({ by: ['bookId'], _avg: { rating } })  // 批量评分
-  3. prisma.userFavorite.findMany({ where: { userId, bookId: { in: ids } } })  // 批量收藏
-  然后内存中合并数据
-```
-
-### 1.2 `/api/user/favorites` 接口重构
-
-同样的 N+1 问题，使用 `groupBy` 批量查询评分。
-
-### 1.3 管理后台服务端分页
-
-| 页面 | 改造方式 | 新增API参数 |
-|------|---------|------------|
-| `admin/books` | 服务端组件添加 searchParams 分页 | `page`, `limit`, `search` |
-| `admin/users` | API 增加 page/limit/role/search 参数 | `page`, `limit`, `role`, `search` |
-| `admin/reviews` | API 增加 page/limit/status 参数 | `page`, `limit`, `status` |
-| `admin/subscriptions` | API 增加 page/limit/status 参数 | `page`, `limit`, `status` |
-
-### 1.4 智能分页组件
-
-替换 `[...Array(totalPages)].map()` 为只显示：首页 ... 当前页±2 ... 末页
-
-### 1.5 验证
-
-- 确认 `/api/books` 响应时间大幅降低（从25次查询到3次）
-- 确认管理后台表格正常分页
-- 确认搜索/筛选参数与分页正确联动
-
----
-
-## Phase 2：状态管理 — React Query（TanStack Query）
-
-### 2.1 安装依赖
-
-```
-npm install @tanstack/react-query @tanstack/react-query-devtools
-```
-
-### 2.2 文件结构
-
-```
-lib/
-  query-client.ts          # QueryClient 实例 + 默认配置
-hooks/
-  use-user.ts              # 用户信息 hook（替代5页重复 fetchUser）
-  use-books.ts             # 书籍列表 hook（分页+搜索+筛选）
-  use-book-detail.ts       # 单本书详情 hook + 预取
-  use-favorites.ts         # 收藏 hook（乐观更新）
-  use-categories.ts        # 分类 hook（5分钟稳定缓存）
-  use-debounce.ts          # 防抖 hook
-components/providers/
-  QueryProvider.tsx         # QueryClientProvider 全局 Provider
-```
-
-### 2.3 QueryClient 配置
-
-```typescript
-// lib/query-client.ts
-defaultOptions: {
-  queries: {
-    staleTime: 60 * 1000,       // 1分钟内不重新请求
-    gcTime: 5 * 60 * 1000,     // 5分钟垃圾回收
-    retry: 3,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
-  },
-}
-```
-
-### 2.4 核心 Hooks
-
-| Hook | 功能 | 替代内容 |
-|------|------|---------|
-| `useUser()` | 共享用户缓存 | 5个页面的 `fetchUser()` |
-| `useBooks(params)` | 分页+搜索+筛选 | books 页面手动 fetch |
-| `useBookDetail(id)` | 单书详情+预取 | book detail 页面手动 fetch |
-| `useFavorites()` | 收藏列表 | favorites 页面手动 fetch |
-| `useToggleFavorite()` | 乐观更新收藏切换 | `fetchBooks()` 全量重请求 |
-| `useCategories()` | 稳定缓存分类 | books 页面手动 fetchCategories |
-| `useDebounce(value, delay)` | 搜索防抖 | 直接触发 fetch |
-
-### 2.5 乐观更新策略
-
-收藏切换的 onMutate/onError/onSettled 流程：
-1. `onMutate`: 取消进行中查询 → 保存旧快照 → 乐观更新 favorites 和 books 缓存
-2. `onError`: 回滚 favorites 到旧快照 → invalidate books
-3. `onSettled`: invalidate favorites 确保数据一致
-
-### 2.6 页面改造清单
-
-| 页面 | 当前代码行数（数据逻辑） | 改造后 |
-|------|------|--------|
-| `/books` | ~60行 useState+fetch | useUser + useBooks + useCategories + useToggleFavorite |
-| `/books/[id]` | ~50行 | useUser + useBookDetail |
-| `/favorites` | ~40行 | useUser + useFavorites + useToggleFavorite |
-| `/dashboard` | ~30行 | useUser |
-| `/pricing/checkout` | ~30行 | useUser |
-
-### 2.7 预取能力
-
-BookCard 组件添加 `onMouseEnter` 时调用 `queryClient.prefetchQuery` 预取书籍详情，点击进入详情页时数据已缓存。
-
-### 2.8 验证
-
-- 确认导航时用户信息不重复请求（Network 面板查看）
-- 确认收藏切换秒级响应（乐观更新）
-- 确认 React Query DevTools 正常显示查询状态
-- 确认搜索防抖生效（300ms延迟）
-
----
-
-## Phase 3：骨架屏 + 错误边界
-
-### 3.1 需要添加 loading.tsx 的路由
-
-```
-app/(user)/books/loading.tsx
-app/(user)/books/[id]/loading.tsx
-app/(user)/dashboard/loading.tsx
-app/(user)/favorites/loading.tsx
-app/(admin-dashboard)/admin/books/loading.tsx
-app/(admin-dashboard)/admin/users/loading.tsx
-app/(admin-dashboard)/admin/reviews/loading.tsx
-app/(admin-dashboard)/admin/subscriptions/loading.tsx
-```
-
-### 3.2 需要添加 error.tsx 的路由
-
-同上所有路由添加 error.tsx，包含：
-- 友好的错误图标和提示文案
-- "Try Again" 重试按钮调用 `reset()`
-- 暗色模式支持
-
-### 3.3 骨架屏设计规范
-
-- 使用 `animate-pulse` 动画
-- 模拟实际布局结构（导航栏 → 标题 → 网格卡片）
-- 支持暗色模式（`bg-slate-200 dark:bg-slate-700`）
-- 卡片骨架高度与实际卡片一致（`h-64` 图片区 + 内容区）
-
-### 3.4 验证
-
-- 使用 Chrome DevTools Network throttling (Slow 3G) 验证骨架屏显示
-- 验证 error.tsx 在 API 返回 500 时正确显示
-
----
-
-## Phase 4：渲染优化
-
-### 4.1 组件提取 + React.memo
-
-| 组件 | memo 化理由 |
-|------|------------|
-| `BookCard` | 列表项，书籍列表重渲染时避免所有卡片都重渲染 |
-| `StarRating` | 纯展示组件，rating 不变就不需要重渲染 |
-| `BookCardSkeleton` | 骨架屏组件，静态无状态 |
-| `Pagination` | 分页组件，仅在页码变化时重渲染 |
-
-### 4.2 useCallback 稳定化回调
-
-```typescript
-// books/page.tsx
-const handleToggleFavorite = useCallback((bookId: number, isFavorited: boolean) => {
-  toggleFavorite.mutate({ bookId, isFavorited });
-}, [toggleFavorite]);
-
-const handleCategoryChange = useCallback((categoryId: string) => {
-  setSelectedCategory(categoryId);
-  setCurrentPage(1);
-}, []);
-```
-
-### 4.3 useMemo 稳定派生数据
-
-```typescript
-// users/page.tsx
-const filteredUsers = useMemo(() => {
-  if (filter === "all") return users;
-  if (filter === "admin") return users.filter(u => u.role === "ADMIN");
-  // ...
-}, [users, filter]);
-```
-
-### 4.4 Dynamic Import 重型组件
-
-```typescript
-// books/[id]/page.tsx
-const ReactMarkdown = dynamic(() => import("react-markdown"), {
-  loading: () => <div className="animate-pulse h-40 bg-slate-200 dark:bg-slate-700 rounded" />,
-});
-```
-
-### 4.5 搜索防抖
-
-使用 `useDebounce` hook，搜索输入 300ms 防抖后才触发 API 请求。
-
-### 4.6 验证
-
-- React DevTools Profiler 验证 BookCard 切页不重渲染
-- Network 面板验证防抖请求不再频繁
-- Lighthouse 验证 JS bundle 减少（dynamic import）
-
----
-
-## Phase 5：虚拟列表
-
-### 5.1 安装依赖
-
-```
-npm install @tanstack/react-virtual
-```
-
-### 5.2 适用场景与优先级
-
-| 页面 | 数据量 | 方案 | 优先级 |
-|------|--------|------|--------|
-| 管理后台 books 表格 | 可能>100 | 服务端分页（Phase 1 已做） | ✅ 已完成 |
-| 管理后台 users 表格 | 可能>100 | 服务端分页（Phase 1 已做） | ✅ 已完成 |
-| 管理后台 reviews | 可能>100 | 服务端分页（Phase 1 已做） | ✅ 已完成 |
-| 书籍详情评论列表 | 可能>50 | 分页 + 懒加载 | Phase 5 |
-| 收藏页面 | 通常<50 | 分页兜底 + 虚拟列表 | Phase 5 |
-
-### 5.3 评论列表无限滚动
-
-使用 React Query 的 `useInfiniteQuery` + `@tanstack/react-virtual`：
-
-```typescript
-const {
-  data,
-  fetchNextPage,
-  hasNextPage,
-  isFetchingNextPage,
-} = useInfiniteQuery({
-  queryKey: ["reviews", bookId],
-  queryFn: ({ pageParam }) => fetchReviews(bookId, pageParam),
-  initialPageParam: 1,
-  getNextPageParam: (lastPage) => lastPage.nextPage,
-});
-
-// 虚拟列表渲染评论
-const virtualizer = useVirtualizer({
-  count: hasNextPage ? flattenedReviews.length + 1 : flattenedReviews.length,
-  getScrollElement: () => parentRef.current,
-  estimateSize: () => 120,
-  overscan: 5,
-});
-```
-
-### 5.4 管理后台表格虚拟行（可选）
-
-当管理后台单页数据量超过 50 条时，对 `<table>` 的 `<tbody>` 使用虚拟滚动：
-
-```typescript
-const virtualizer = useVirtualizer({
-  count: filteredItems.length,
-  getScrollElement: () => parentRef.current,
-  estimateSize: () => 64, // 每行高度
-  overscan: 10,
-});
-```
-
-### 5.5 验证
-
-- 渲染 1000+ 条评论时页面不卡顿
-- 滚动流畅度无下降
-- 管理后台表格 100+ 行时渲染正常
-
----
-
-## Phase 6：next.config.ts + 全局优化
-
-### 6.1 next.config.ts 优化
-
-```typescript
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "**" },
-    ],
-    formats: ["image/avif", "image/webp"],
-    deviceSizes: [640, 750, 828, 1080, 1200],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256],
-  },
-  experimental: {
-    optimizePackageImports: [
-      "react-markdown",
-      "remark-gfm",
-    ],
-  },
-  headers: async () => [
-    {
-      source: "/(.*)",
-      headers: [
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "X-Frame-Options", value: "DENY" },
-        { key: "X-XSS-Protection", value: "1; mode=block" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-      ],
-    },
-    {
-      source: "/api/(.*)",
-      headers: [
-        { key: "Cache-Control", value: "no-store" },
-      ],
-    },
-    {
-      source: "/_next/static/(.*)",
-      headers: [
-        { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-      ],
-    },
-  ],
-};
-
-export default nextConfig;
-```
-
-### 6.2 Admin 封面图优化
-
-将 `<img>` 标签替换为 `next/image` 组件，利用自动图片优化和懒加载。
-
-当前 admin/books 使用 `<img src={book.coverImageUrl}>`，需改为 `<Image>`。
-
-### 6.3 验证
-
-- Lighthouse Performance 分数提升
-- 图片自动 WebP/AVIF 转换生效
-- 安全 headers 正确返回
-- 管理后台图片懒加载生效
->>>>>>> 130788aa932e4720aeafd5cad5e5fd4cf55404dc

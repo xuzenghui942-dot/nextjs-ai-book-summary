@@ -146,14 +146,52 @@ export { default } from "./db/prisma";
 
 ### 实际执行记录
 
-（待 Step 0 完成后执行）
+#### 新建组件
+
+| 组件 | 路径 | 说明 |
+|------|------|------|
+| Navbar | `components/layout/Navbar.tsx` | 统一用户端导航栏，支持 activePath 高亮、ADMIN 入口、登录态切换 |
+| UserLayout | `components/layout/UserLayout.tsx` | 用户端统一页面外壳（min-h-screen + Navbar + main） |
+| StarRating | `components/ui/StarRating.tsx` | 统一星级评分，支持 interactive/showValue/size |
+| BookCard | `components/ui/BookCard.tsx` | 统一图书卡片，支持 grid/favorite 两种 variant |
+| EmptyState | `components/ui/EmptyState.tsx` | 空状态组件（带可选 action 按钮） |
+| LoadingSkeleton | `components/ui/LoadingSkeleton.tsx` | 骨架屏组件（默认 8 个卡片骨架） |
+
+#### 页面改造
+
+| 页面 | 改造内容 |
+|------|---------|
+| `app/(user)/books/page.tsx` | 删除内联 Navbar/卡片/randerStars，改用 UserLayout + BookCard + StarRating + LoadingSkeleton + EmptyState |
+| `app/(user)/favorites/page.tsx` | 同上，BookCard 使用 variant="favorite"，空状态使用 EmptyState |
+| `app/(user)/books/[id]/page.tsx` | 删除内联 Navbar，评分展示和评论表单改用 StarRating |
+| `app/(user)/dashboard/page.tsx` | 删除内联 Navbar，改用 UserLayout，保留业务布局 |
+| `app/(user)/pricing/page.tsx` | 删除内联 Navbar，改用 UserLayout，保留业务布局 |
+
+#### 类型替换
+
+- `books/page.tsx`：`user: any` → `UserProfile | null`
+- `favorites/page.tsx`：`user: any` → `UserProfile | null`
+- `pricing/page.tsx`：`user: any` → `UserProfile | null`
+- `books/[id]/page.tsx`：`keyTakeaways: any` → `unknown`，`tableOfContents: any` → `unknown`，`chapters.map((chapter: any))` → `chapters.map((chapter, index))`
+
+#### TypeScript 检查结果
+
+```
+Found 1 error in lib/auth.ts:20  ← 历史债务，与 Step 1 无关
+```
+
+无新增类型错误。
+
+### 遇到的问题
+
+1. `lib/utils.ts` 临时创建后删除：最初想使用 `cn()` 工具函数，但 `clsx`/`tailwind-merge` 未安装。StarRating 改用简单模板字符串拼接 className，未新增依赖。
 
 ### 验收标准
 
-- [ ] 用户端页面不再重复手写 Navbar。
-- [ ] 项目中不存在 `randerStars`。
-- [ ] books 和 favorites 复用同一个 `BookCard`。
-- [ ] loading 状态不再只显示纯文字。
+- [x] 用户端页面不再重复手写 Navbar。
+- [x] 项目中不存在 `randerStars`。
+- [x] books 和 favorites 复用同一个 `BookCard`。
+- [x] loading 状态不再只显示纯文字（使用 LoadingSkeleton 骨架屏）。
 
 ---
 
